@@ -1,0 +1,9 @@
+package: github.com/jmalloc/
+import:
+- package: github.com/miekg/dns
+  version: ~1.0.0
+testImport:
+- package: github.com/onsi/ginkgo
+  version: ~1.4.0
+- package: github.com/onsi/gomega
+  version: ~1.2.0
