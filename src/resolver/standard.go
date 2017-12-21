@@ -45,41 +45,23 @@ type StandardResolver struct {
 // LookupAddr performs a reverse lookup for the given address, returning a
 // list of names mapping to that address.
 func (r *StandardResolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
-	var addrs []string
-	if arpa, ok := ipToArpa(addr); ok {
-		addrs = []string{arpa}
+	addr, _ = ipToArpa(addr)
+	res, err := r.query(ctx, addr, dns.TypePTR)
+	if err != nil {
+		return
+	}
+
+	if res == nil {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: addr,
+		}
 	} else {
-		addrs = r.nameList(addr)
-	}
-
-	var res *dns.Msg
-	req := &dns.Msg{}
-
-	for _, a := range addrs {
-		req.SetQuestion(a, dns.TypePTR)
-
-		if r.isMulticast(a) {
-			res, err = r.queryMulticast(ctx, req)
-		} else {
-			res, err = r.queryUnicast(ctx, req)
-		}
-
-		if err != nil {
-			return
-		} else if res != nil {
-			for _, ans := range res.Answer {
-				if ptr, ok := ans.(*dns.PTR); ok {
-					names = append(names, ptr.Ptr)
-				}
+		for _, ans := range res.Answer {
+			if ptr, ok := ans.(*dns.PTR); ok {
+				names = append(names, ptr.Ptr)
 			}
-
-			return
 		}
-	}
-
-	err = &net.DNSError{
-		Err:  "unable to resolve address",
-		Name: addr,
 	}
 
 	return
@@ -97,14 +79,32 @@ func (r *StandardResolver) LookupCNAME(ctx context.Context, host string) (cname 
 	panic("not impl")
 }
 
-// LookupHost looks up the given host using the local resolver. It returns a
-// slice of that host's addresses.
+// LookupHost looks up the given host. It returns a slice of that host's
+// addresses.
 func (r *StandardResolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
-	panic("not impl")
+	res, err := r.query(ctx, host, dns.TypeA)
+	if err != nil {
+		return
+	}
+
+	if res == nil {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: host,
+		}
+	} else {
+		for _, ans := range res.Answer {
+			if a, ok := ans.(*dns.A); ok {
+				addrs = append(addrs, a.A.String())
+			}
+		}
+	}
+
+	return
 }
 
-// LookupIPAddr looks up host using the local resolver. It returns a slice of
-// that host's IPv4 and IPv6 addresses.
+// LookupIPAddr looks up host. It returns a slice of that host's IPv4 and IPv6
+// addresses.
 func (r *StandardResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
 	panic("not impl")
 }
@@ -142,6 +142,31 @@ func (r *StandardResolver) LookupTXT(ctx context.Context, name string) ([]string
 	panic("not impl")
 }
 
+func (r *StandardResolver) query(ctx context.Context, n string, t uint16) (res *dns.Msg, err error) {
+	cfg := r.Config
+	if cfg == nil {
+		cfg = DefaultConfig
+	}
+
+	req := &dns.Msg{}
+
+	for _, n := range cfg.NameList(n) {
+		req.SetQuestion(n, t)
+
+		if r.isMulticast(n) {
+			res, err = r.queryMulticast(ctx, req)
+		} else {
+			res, err = r.queryUnicast(ctx, req)
+		}
+
+		if res != nil || err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func (r *StandardResolver) queryUnicast(ctx context.Context, req *dns.Msg) (res *dns.Msg, err error) {
 	cfg := r.Config
 	if cfg == nil {
@@ -171,15 +196,6 @@ func (r *StandardResolver) queryUnicast(ctx context.Context, req *dns.Msg) (res 
 
 func (r *StandardResolver) queryMulticast(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
 	return nil, nil
-}
-
-func (r *StandardResolver) nameList(n string) []string {
-	cfg := r.Config
-	if cfg == nil {
-		cfg = DefaultConfig
-	}
-
-	return cfg.NameList(n)
 }
 
 func (r *StandardResolver) isMulticast(n string) bool {

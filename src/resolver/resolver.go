@@ -22,12 +22,12 @@ type Resolver interface {
 	// DNS "CNAME" records, as long as host resolves to address records.
 	LookupCNAME(ctx context.Context, host string) (cname string, err error)
 
-	// LookupHost looks up the given host using the local resolver. It returns a
-	// slice of that host's addresses.
+	// LookupHost looks up the given host. It returns a slice of that host's
+	// addresses.
 	LookupHost(ctx context.Context, host string) (addrs []string, err error)
 
-	// LookupIPAddr looks up host using the local resolver. It returns a slice of
-	// that host's IPv4 and IPv6 addresses.
+	// LookupIPAddr looks up host. It returns a slice of that host's IPv4 and
+	// IPv6 addresses.
 	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
 
 	// LookupMX returns the DNS MX records for the given domain name sorted by
