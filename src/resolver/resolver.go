@@ -1,12 +1,12 @@
-package dissolve
+package resolver
 
 import (
 	"context"
 	"net"
 )
 
-// Resolver is an interface for making DNS queries.
-// It is compatible with the net.Resolver struct.
+// Resolver is an interface for making DNS queries. It has the same method-set
+// as Go's standard net.Resolver struct.
 type Resolver interface {
 	// LookupAddr performs a reverse lookup for the given address, returning a
 	// list of names mapping to that address.

@@ -1,5 +1,5 @@
-hash: 9fd3805b82ed566528b46436cfeb915cf63e7b5b40eea22645048958a4b598c4
-updated: 2017-12-21T09:11:05.620711553+10:00
+hash: 625c0ad1e8c42a72ababdfe4c489941e3f612534547c3bb832f1a1c09d744b87
+updated: 2017-12-21T09:24:15.693347616+10:00
 imports:
 - name: github.com/miekg/dns
   version: 9271f6595be6734763aaf4b7923f8f1b7a6cc559
@@ -12,6 +12,9 @@ imports:
   version: b60f3a92103dfd93dfcb900ec77c6d0643510868
   subpackages:
   - bpf
+  - html
+  - html/atom
+  - html/charset
   - internal/iana
   - internal/socket
   - ipv4
@@ -19,5 +22,59 @@ imports:
 testImports:
 - name: github.com/onsi/ginkgo
   version: 9eda700730cba42af70d53180f9dcce9266bc2bc
+  subpackages:
+  - config
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/spec_iterator
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
+  - types
 - name: github.com/onsi/gomega
   version: c893efa28eb45626cdaa76c9f653b62488858837
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
+- name: golang.org/x/sys
+  version: 2320a9c15898af1b1b24f99700d5c1e957f9d8cf
+  subpackages:
+  - unix
+- name: golang.org/x/text
+  version: 1cbadb444a806fd9430d14ad08967ed91da4fa0a
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/htmlindex
+  - encoding/internal
+  - encoding/internal/identifier
+  - encoding/japanese
+  - encoding/korean
+  - encoding/simplifiedchinese
+  - encoding/traditionalchinese
+  - encoding/unicode
+  - internal/tag
+  - internal/utf8internal
+  - language
+  - runes
+  - transform
+- name: gopkg.in/yaml.v2
+  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
