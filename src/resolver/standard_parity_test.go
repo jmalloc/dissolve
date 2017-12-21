@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("StandardResolver (net.Resolver parity)", func() {
+var _ = XDescribe("StandardResolver (net.Resolver parity)", func() {
 	var (
 		subject, ref Resolver
 		ctx          context.Context
