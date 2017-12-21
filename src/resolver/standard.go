@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/jmalloc/dissolve/src/client"
@@ -44,7 +45,44 @@ type StandardResolver struct {
 // LookupAddr performs a reverse lookup for the given address, returning a
 // list of names mapping to that address.
 func (r *StandardResolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
-	panic("not impl")
+	var addrs []string
+	if arpa, ok := ipToArpa(addr); ok {
+		addrs = []string{arpa}
+	} else {
+		addrs = r.nameList(addr)
+	}
+
+	var res *dns.Msg
+	req := &dns.Msg{}
+
+	for _, a := range addrs {
+		req.SetQuestion(a, dns.TypePTR)
+
+		if r.isMulticast(a) {
+			res, err = r.queryMulticast(ctx, req)
+		} else {
+			res, err = r.queryUnicast(ctx, req)
+		}
+
+		if err != nil {
+			return
+		} else if res != nil {
+			for _, ans := range res.Answer {
+				if ptr, ok := ans.(*dns.PTR); ok {
+					names = append(names, ptr.Ptr)
+				}
+			}
+
+			return
+		}
+	}
+
+	err = &net.DNSError{
+		Err:  "unable to resolve address",
+		Name: addr,
+	}
+
+	return
 }
 
 // LookupCNAME returns the canonical name for the given host. Callers that
@@ -102,4 +140,52 @@ func (r *StandardResolver) LookupSRV(ctx context.Context, service, proto, name s
 // LookupTXT returns the DNS TXT records for the given domain name.
 func (r *StandardResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	panic("not impl")
+}
+
+func (r *StandardResolver) queryUnicast(ctx context.Context, req *dns.Msg) (res *dns.Msg, err error) {
+	cfg := r.Config
+	if cfg == nil {
+		cfg = DefaultConfig
+	}
+
+	cli := r.Unicast
+	if cli == nil {
+		cli = client.DefaultUnicast
+	}
+
+	for _, ns := range cfg.Servers {
+		ns = net.JoinHostPort(ns, cfg.Port)
+
+		res, err = cli.Query(ctx, req, ns)
+		if err != nil {
+			return
+		} else if res == nil {
+			continue // TODO: when can res be nil?
+		} else if res.Rcode == dns.RcodeNameError || res.Rcode == dns.RcodeSuccess {
+			return
+		}
+	}
+
+	return nil, nil
+}
+
+func (r *StandardResolver) queryMulticast(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+	return nil, nil
+}
+
+func (r *StandardResolver) nameList(n string) []string {
+	cfg := r.Config
+	if cfg == nil {
+		cfg = DefaultConfig
+	}
+
+	return cfg.NameList(n)
+}
+
+func (r *StandardResolver) isMulticast(n string) bool {
+	if r.IsMulticast != nil {
+		return r.IsMulticast(n)
+	}
+
+	return strings.HasSuffix(n, ".local.")
 }
