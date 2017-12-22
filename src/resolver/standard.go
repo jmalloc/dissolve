@@ -51,19 +51,20 @@ func (r *StandardResolver) LookupAddr(ctx context.Context, addr string) (names [
 		return
 	}
 
-	if res == nil {
-		err = &net.DNSError{
-			Err:  "unable to resolve address", // TODO
-			Name: addr,
-		}
-	} else {
+	if res != nil {
 		for _, ans := range res.Answer {
-			if ptr, ok := ans.(*dns.PTR); ok {
-				names = append(names, ptr.Ptr)
+			if rec, ok := ans.(*dns.PTR); ok {
+				names = append(names, rec.Ptr)
 			}
 		}
 	}
 
+	if len(names) == 0 {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: addr,
+		}
+	}
 	return
 }
 
@@ -76,7 +77,26 @@ func (r *StandardResolver) LookupAddr(ctx context.Context, addr string) (names [
 // records. LookupCNAME does not return an error if host does not contain
 // DNS "CNAME" records, as long as host resolves to address records.
 func (r *StandardResolver) LookupCNAME(ctx context.Context, host string) (cname string, err error) {
-	panic("not impl")
+	res, err := r.query(ctx, host, dns.TypeCNAME)
+	if err != nil {
+		return
+	}
+
+	if res != nil {
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.CNAME); ok {
+				cname = rec.Target
+				return
+			}
+		}
+	}
+
+	err = &net.DNSError{
+		Err:  "unable to resolve address", // TODO
+		Name: host,
+	}
+
+	return
 }
 
 // LookupHost looks up the given host. It returns a slice of that host's
@@ -87,16 +107,18 @@ func (r *StandardResolver) LookupHost(ctx context.Context, host string) (addrs [
 		return
 	}
 
-	if res == nil {
+	if res != nil {
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.A); ok {
+				addrs = append(addrs, rec.A.String())
+			}
+		}
+	}
+
+	if len(addrs) == 0 {
 		err = &net.DNSError{
 			Err:  "unable to resolve address", // TODO
 			Name: host,
-		}
-	} else {
-		for _, ans := range res.Answer {
-			if a, ok := ans.(*dns.A); ok {
-				addrs = append(addrs, a.A.String())
-			}
 		}
 	}
 

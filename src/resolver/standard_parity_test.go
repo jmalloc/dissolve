@@ -45,16 +45,24 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 		})
 	})
 
-	// Describe("LookupCNAME", func() {
-	//     (ctx context.Context, host string) (cname string, err error)
-	// })
+	Describe("LookupCNAME", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupCNAME(ctx, "mail.icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupCNAME(ctx, "mail.icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(s).To(Equal(r))
+		})
+	})
 
 	Describe("LookupHost", func() {
 		It("returns the same results as the built-in implementation", func() {
-			s, err := subject.LookupHost(ctx, "github.com")
+			s, err := subject.LookupHost(ctx, "www.icecave.com.au")
 			Expect(err).ShouldNot(HaveOccurred())
 
-			r, err := builtin.LookupHost(ctx, "github.com")
+			r, err := builtin.LookupHost(ctx, "www.icecave.com.au")
 			Expect(err).ShouldNot(HaveOccurred())
 
 			sort.Strings(s)
