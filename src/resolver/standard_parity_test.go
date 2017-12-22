@@ -3,7 +3,6 @@ package resolver_test
 import (
 	"context"
 	"net"
-	"sort"
 	"time"
 
 	. "github.com/jmalloc/dissolve/src/resolver"
@@ -38,10 +37,7 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 			r, err := builtin.LookupAddr(ctx, "8.8.8.8")
 			Expect(err).ShouldNot(HaveOccurred())
 
-			sort.Strings(s)
-			sort.Strings(r)
-
-			Expect(s).To(Equal(r))
+			Expect(s).To(ConsistOf(r))
 		})
 	})
 
@@ -65,10 +61,7 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 			r, err := builtin.LookupHost(ctx, "www.icecave.com.au")
 			Expect(err).ShouldNot(HaveOccurred())
 
-			sort.Strings(s)
-			sort.Strings(r)
-
-			Expect(s).To(Equal(r))
+			Expect(s).To(ConsistOf(r))
 		})
 	})
 
@@ -94,17 +87,17 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 		})
 	})
 
-	// Describe("LookupNS", func() {
-	// 	It("returns the same results as the built-in implementation", func() {
-	// 		s, err := subject.LookupNS(ctx, "github.com")
-	// 		Expect(err).ShouldNot(HaveOccurred())
-	//
-	// 		r, err := builtin.LookupNS(ctx, "github.com")
-	// 		Expect(err).ShouldNot(HaveOccurred())
-	//
-	// 		Expect(s).To(Equal(r))
-	// 	})
-	// })
+	Describe("LookupNS", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupNS(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupNS(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(s).To(ConsistOf(r))
+		})
+	})
 	//
 	// Describe("LookupPort", func() {
 	//     (ctx context.Context, network, service string) (port int, err error)

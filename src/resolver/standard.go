@@ -166,8 +166,30 @@ func (r *StandardResolver) LookupMX(ctx context.Context, name string) (mx []*net
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
-func (r *StandardResolver) LookupNS(ctx context.Context, name string) ([]*net.NS, error) {
-	panic("not impl")
+func (r *StandardResolver) LookupNS(ctx context.Context, name string) (ns []*net.NS, err error) {
+	res, err := r.query(ctx, name, dns.TypeNS)
+	if err != nil {
+		return
+	}
+
+	if res != nil {
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.NS); ok {
+				ns = append(ns, &net.NS{
+					Host: rec.Ns,
+				})
+			}
+		}
+	}
+
+	if len(ns) == 0 {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: name,
+		}
+	}
+
+	return
 }
 
 // LookupPort looks up the port for the given network and service.
