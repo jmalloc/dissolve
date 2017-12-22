@@ -107,7 +107,15 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 	//     (ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error)
 	// })
 	//
-	// Describe("LookupTXT", func() {
-	//     (ctx context.Context, name string) ([]string, error)
-	// })
+	Describe("LookupTXT", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupTXT(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupTXT(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(s).To(ConsistOf(r))
+		})
+	})
 })

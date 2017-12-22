@@ -210,8 +210,28 @@ func (r *StandardResolver) LookupSRV(ctx context.Context, service, proto, name s
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
-func (r *StandardResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	panic("not impl")
+func (r *StandardResolver) LookupTXT(ctx context.Context, name string) (txt []string, err error) {
+	res, err := r.query(ctx, name, dns.TypeTXT)
+	if err != nil {
+		return
+	}
+
+	if res != nil {
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.TXT); ok {
+				txt = append(txt, rec.Txt...)
+			}
+		}
+	}
+
+	if len(txt) == 0 {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: name,
+		}
+	}
+
+	return
 }
 
 func (r *StandardResolver) query(ctx context.Context, n string, t uint16) (res *dns.Msg, err error) {
