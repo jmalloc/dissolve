@@ -75,11 +75,25 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 	// Describe("LookupIPAddr", func() {
 	//     (ctx context.Context, host string) ([]net.IPAddr, error)
 	// })
-	//
-	// Describe("LookupMX", func() {
-	//     (ctx context.Context, name string) ([]*net.MX, error)
-	// })
-	//
+
+	Describe("LookupMX", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupMX(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupMX(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(s).To(HaveLen(len(r)))
+
+			// expect preferences to be the same at each entry
+			for idx := 0; idx < len(r); idx++ {
+				a, b := s[idx], r[idx]
+				Expect(a.Pref).To(Equal(b.Pref))
+			}
+		})
+	})
+
 	// Describe("LookupNS", func() {
 	// 	It("returns the same results as the built-in implementation", func() {
 	// 		s, err := subject.LookupNS(ctx, "github.com")

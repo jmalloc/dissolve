@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"net"
+	"sort"
 	"strings"
 	"time"
 
@@ -102,7 +103,7 @@ func (r *StandardResolver) LookupCNAME(ctx context.Context, host string) (cname 
 // LookupHost looks up the given host. It returns a slice of that host's
 // addresses.
 func (r *StandardResolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
-	res, err := r.query(ctx, host, dns.TypeA)
+	res, err := r.query(ctx, host, dns.TypeA) // TODO: IPv6/AAAA
 	if err != nil {
 		return
 	}
@@ -133,8 +134,35 @@ func (r *StandardResolver) LookupIPAddr(ctx context.Context, host string) ([]net
 
 // LookupMX returns the DNS MX records for the given domain name sorted by
 // preference.
-func (r *StandardResolver) LookupMX(ctx context.Context, name string) ([]*net.MX, error) {
-	panic("not impl")
+func (r *StandardResolver) LookupMX(ctx context.Context, name string) (mx []*net.MX, err error) {
+	res, err := r.query(ctx, name, dns.TypeMX)
+	if err != nil {
+		return
+	}
+
+	if res != nil {
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.MX); ok {
+				mx = append(mx, &net.MX{
+					Host: rec.Mx,
+					Pref: rec.Preference,
+				})
+			}
+		}
+
+		sort.Slice(mx, func(i, j int) bool {
+			return mx[i].Pref < mx[j].Pref
+		})
+	}
+
+	if len(mx) == 0 {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: name,
+		}
+	}
+
+	return
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
