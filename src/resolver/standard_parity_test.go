@@ -103,10 +103,23 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 	//     (ctx context.Context, network, service string) (port int, err error)
 	// })
 	//
-	// Describe("LookupSRV", func() {
-	//     (ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error)
-	// })
-	//
+	Describe("LookupSRV", func() {
+		It("returns the same results as the built-in implementation", func() {
+			sc, s, err := subject.LookupSRV(ctx, "jabber", "tcp", "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			rc, r, err := builtin.LookupSRV(ctx, "jabber", "tcp", "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(sc).To(Equal(rc))
+			Expect(s).To(ConsistOf(r))
+
+			for i, rec := range s {
+				Expect(rec.Priority).To(Equal(r[i].Priority))
+			}
+		})
+	})
+
 	Describe("LookupTXT", func() {
 		It("returns the same results as the built-in implementation", func() {
 			s, err := subject.LookupTXT(ctx, "icecave.com.au")

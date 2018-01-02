@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sort"
 	"strings"
@@ -206,7 +207,40 @@ func (r *StandardResolver) LookupPort(ctx context.Context, network, service stri
 // records under non-standard names, if both service and proto are empty
 // strings, LookupSRV looks up name directly.
 func (r *StandardResolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error) {
-	panic("not impl")
+	if service != "" || proto != "" {
+		service = fmt.Sprintf("_%s._%s.%s", service, proto, name)
+	}
+
+	res, err := r.query(ctx, service, dns.TypeSRV)
+	if err != nil {
+		return
+	}
+
+	if res != nil {
+		cname = res.Question[0].Name
+
+		for _, ans := range res.Answer {
+			if rec, ok := ans.(*dns.SRV); ok {
+				addrs = append(addrs, &net.SRV{
+					Target:   rec.Target,
+					Port:     rec.Port,
+					Priority: rec.Priority,
+					Weight:   rec.Weight,
+				})
+			}
+		}
+
+		sortSRV(addrs)
+	}
+
+	if len(addrs) == 0 {
+		err = &net.DNSError{
+			Err:  "unable to resolve address", // TODO
+			Name: name,
+		}
+	}
+
+	return
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
