@@ -195,7 +195,7 @@ func (r *StandardResolver) LookupNS(ctx context.Context, name string) (ns []*net
 
 // LookupPort looks up the port for the given network and service.
 func (r *StandardResolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
-	panic("not impl")
+	return net.DefaultResolver.LookupPort(ctx, network, service)
 }
 
 // LookupSRV tries to resolve an SRV query of the given service, protocol,

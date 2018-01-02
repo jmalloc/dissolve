@@ -98,11 +98,19 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 			Expect(s).To(ConsistOf(r))
 		})
 	})
-	//
-	// Describe("LookupPort", func() {
-	//     (ctx context.Context, network, service string) (port int, err error)
-	// })
-	//
+
+	Describe("LookupPort", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupPort(ctx, "tcp", "https")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupPort(ctx, "tcp", "https")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(s).To(Equal(r))
+		})
+	})
+
 	Describe("LookupSRV", func() {
 		It("returns the same results as the built-in implementation", func() {
 			sc, s, err := subject.LookupSRV(ctx, "jabber", "tcp", "icecave.com.au")
