@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	. "github.com/jmalloc/dissolve/src/resolver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -73,8 +72,6 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 
 			r, err := builtin.LookupIPAddr(ctx, "icecave.com.au")
 			Expect(err).ShouldNot(HaveOccurred())
-
-			spew.Dump(s)
 
 			Expect(s).To(Equal(r))
 		})
