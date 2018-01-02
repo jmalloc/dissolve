@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	. "github.com/jmalloc/dissolve/src/resolver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -65,9 +66,19 @@ var _ = Describe("StandardResolver (net.Resolver parity)", func() {
 		})
 	})
 
-	// Describe("LookupIPAddr", func() {
-	//     (ctx context.Context, host string) ([]net.IPAddr, error)
-	// })
+	Describe("LookupIPAddr", func() {
+		It("returns the same results as the built-in implementation", func() {
+			s, err := subject.LookupIPAddr(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			r, err := builtin.LookupIPAddr(ctx, "icecave.com.au")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			spew.Dump(s)
+
+			Expect(s).To(Equal(r))
+		})
+	})
 
 	Describe("LookupMX", func() {
 		It("returns the same results as the built-in implementation", func() {

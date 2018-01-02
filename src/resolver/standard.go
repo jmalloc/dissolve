@@ -130,7 +130,28 @@ func (r *StandardResolver) LookupHost(ctx context.Context, host string) (addrs [
 // LookupIPAddr looks up host. It returns a slice of that host's IPv4 and IPv6
 // addresses.
 func (r *StandardResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
-	panic("not impl")
+	if host == "" {
+		return nil, &net.DNSError{Err: "no such host", Name: host}
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return []net.IPAddr{{IP: ip}}, nil
+	}
+
+	addrs, err := r.LookupHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	ips := make([]net.IPAddr, 0, len(addrs))
+
+	for _, addr := range addrs {
+		if ip := net.ParseIP(addr); ip != nil {
+			ips = append(ips, net.IPAddr{IP: ip})
+		}
+	}
+
+	return ips, nil
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by
