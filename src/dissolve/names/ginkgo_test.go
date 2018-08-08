@@ -1,4 +1,4 @@
-package resolver_test
+package names_test
 
 import (
 	"reflect"

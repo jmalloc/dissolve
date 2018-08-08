@@ -1,27 +1,10 @@
-hash: 625c0ad1e8c42a72ababdfe4c489941e3f612534547c3bb832f1a1c09d744b87
-updated: 2017-12-21T09:24:15.693347616+10:00
+hash: c6825c7864bcd0e603b0f33da1bb755aac68dd02f1c2cf75e7358867b56719a6
+updated: 2018-08-08T09:38:56.390729681+10:00
 imports:
 - name: github.com/miekg/dns
-  version: 9271f6595be6734763aaf4b7923f8f1b7a6cc559
-- name: golang.org/x/crypto
-  version: 94eea52f7b742c7cbe0b03b22f0c4c8631ece122
-  subpackages:
-  - ed25519
-  - ed25519/internal/edwards25519
-- name: golang.org/x/net
-  version: b60f3a92103dfd93dfcb900ec77c6d0643510868
-  subpackages:
-  - bpf
-  - html
-  - html/atom
-  - html/charset
-  - internal/iana
-  - internal/socket
-  - ipv4
-  - ipv6
-testImports:
+  version: 5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1
 - name: github.com/onsi/ginkgo
-  version: 9eda700730cba42af70d53180f9dcce9266bc2bc
+  version: 3774a09d95489ccaa16032e0770d08ea77ba6184
   subpackages:
   - config
   - internal/codelocation
@@ -41,7 +24,7 @@ testImports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: c893efa28eb45626cdaa76c9f653b62488858837
+  version: b6ea1ea48f981d0f615a154a45eabb9dd466556d
   subpackages:
   - format
   - internal/assertion
@@ -54,12 +37,36 @@ testImports:
   - matchers/support/goraph/node
   - matchers/support/goraph/util
   - types
+- name: golang.org/x/crypto
+  version: f027049dab0ad238e394a753dba2d14753473a04
+  subpackages:
+  - ed25519
+  - ed25519/internal/edwards25519
+- name: golang.org/x/net
+  version: 19491d39cadbd9cd33f26ca22cc89ba4ba38251c
+  subpackages:
+  - bpf
+  - html
+  - html/atom
+  - html/charset
+  - internal/iana
+  - internal/socket
+  - ipv4
+  - ipv6
+testImports:
+- name: github.com/hpcloud/tail
+  version: a1dbeea552b7c8df4b542c66073e393de198a800
+  subpackages:
+  - ratelimiter
+  - util
+  - watch
+  - winfile
 - name: golang.org/x/sys
-  version: 2320a9c15898af1b1b24f99700d5c1e957f9d8cf
+  version: acbc56fc7007d2a01796d5bde54f39e3b3e95945
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 1cbadb444a806fd9430d14ad08967ed91da4fa0a
+  version: 17ff2d5776d28fa6ba2280c1053f7adf8d32eea6
   subpackages:
   - encoding
   - encoding/charmap
@@ -71,10 +78,16 @@ testImports:
   - encoding/simplifiedchinese
   - encoding/traditionalchinese
   - encoding/unicode
+  - internal/language
+  - internal/language/compact
   - internal/tag
   - internal/utf8internal
   - language
   - runes
   - transform
+- name: gopkg.in/fsnotify/fsnotify.v1
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
+- name: gopkg.in/tomb.v1
+  version: c131134a1947e9afd9cecfe11f4c6dff0732ae58
 - name: gopkg.in/yaml.v2
-  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
