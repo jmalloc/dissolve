@@ -5,43 +5,45 @@ import (
 	"net"
 	"sync"
 
+	"github.com/jmalloc/dissolve/src/dissolve/mdns"
 	"github.com/jmalloc/dissolve/src/dissolve/names"
 	"github.com/jmalloc/dissolve/src/dissolve/resolver"
-	"github.com/jmalloc/dissolve/src/dissolve/server"
 	"github.com/miekg/dns"
 )
 
-// Answerer answers DNS questions about DNS-SD services.
-type Answerer struct {
-	m         sync.RWMutex
-	domains   DomainCollection
-	answerers map[names.FQDN]server.Answerer
+// Handler answers DNS questions about DNS-SD services.
+type Handler struct {
+	Resolver resolver.Resolver
+
+	m        sync.RWMutex
+	domains  DomainCollection
+	handlers map[names.FQDN]mdns.Handler
 }
 
 // AddInstance adds a service instance to the answerer.
 // It panics if i is invalid.
-func (a *Answerer) AddInstance(i *Instance) {
+func (h *Handler) AddInstance(i *Instance) {
 	if err := i.Validate(); err != nil {
 		panic(err)
 	}
 
-	a.m.Lock()
-	defer a.m.Unlock()
+	h.m.Lock()
+	defer h.m.Unlock()
 
-	if a.domains == nil {
-		a.domains = DomainCollection{}
-		a.answerers = map[names.FQDN]server.Answerer{}
+	if h.domains == nil {
+		h.domains = DomainCollection{}
+		h.handlers = map[names.FQDN]mdns.Handler{}
 	}
 
-	d, ok := a.domains[i.Domain]
+	d, ok := h.domains[i.Domain]
 	if !ok {
 		d = &Domain{
 			Name:     i.Domain,
 			Services: ServiceCollection{},
 		}
 
-		a.domains[d.Name] = d
-		a.answerers[d.ServiceTypeEnumerationDomain()] = &serviceTypeEnumerator{d}
+		h.domains[d.Name] = d
+		h.handlers[d.ServiceTypeEnumerationDomain()] = &serviceTypeEnumerator{d}
 	}
 
 	s, ok := d.Services[i.Service]
@@ -53,31 +55,31 @@ func (a *Answerer) AddInstance(i *Instance) {
 		}
 
 		d.Services[s.Name] = s
-		a.answerers[s.InstanceEnumerationDomain()] = &instanceEnumerator{s}
+		h.handlers[s.InstanceEnumerationDomain()] = &instanceEnumerator{h.Resolver, s}
 	}
 
 	x, ok := s.Instances[i.Name]
 	if ok {
 		// remove previous host
-		delete(a.answerers, x.TargetHost)
+		delete(h.handlers, x.TargetHost)
 	}
 
 	s.Instances[i.Name] = i
-	a.answerers[i.FQDN()] = &instanceAnswerer{i}
-	a.answerers[i.TargetHost] = &instanceHostAnswerer{i}
+	h.handlers[i.FQDN()] = &instanceHandler{h.Resolver, i}
+	h.handlers[i.TargetHost] = &instanceHostHandler{h.Resolver, i}
 }
 
-// RemoveInstance removes a service instance from the answerer.
+// RemoveInstance removes a service instance from the handler.
 // It panics if n is invalid.
-func (a *Answerer) RemoveInstance(n InstanceName) {
+func (h *Handler) RemoveInstance(n InstanceName) {
 	if err := n.Validate(); err != nil {
 		panic(err)
 	}
 
-	a.m.Lock()
-	defer a.m.Unlock()
+	h.m.Lock()
+	defer h.m.Unlock()
 
-	d, ok := a.domains[n.Domain]
+	d, ok := h.domains[n.Domain]
 	if !ok {
 		return
 	}
@@ -93,61 +95,56 @@ func (a *Answerer) RemoveInstance(n InstanceName) {
 	}
 
 	delete(s.Instances, i.Name)
-	delete(a.answerers, i.TargetHost)
-	delete(a.answerers, i.FQDN())
+	delete(h.handlers, i.TargetHost)
+	delete(h.handlers, i.FQDN())
 
 	if len(s.Instances) == 0 {
 		delete(d.Services, i.Service)
-		delete(a.answerers, s.InstanceEnumerationDomain())
+		delete(h.handlers, s.InstanceEnumerationDomain())
 	}
 
 	if len(d.Services) == 0 {
-		delete(a.domains, i.Domain)
-		delete(a.answerers, d.ServiceTypeEnumerationDomain())
+		delete(h.domains, i.Domain)
+		delete(h.handlers, d.ServiceTypeEnumerationDomain())
 	}
 }
 
-// Answer populates m with the answer to q.
-//
-// r is the a resolver that should be used by the answerer if it needs to make
-// DNS queries. s is the "source" address of the DNS query being answered.
-func (a *Answerer) Answer(
+// HandleQuestion populates res with the answer to q.
+func (h *Handler) HandleQuestion(
 	ctx context.Context,
-	r resolver.Resolver,
-	s net.Addr,
+	req *mdns.Request,
+	res *mdns.Response,
 	q dns.Question,
-	m *dns.Msg,
 ) error {
-	a.m.RLock()
-	defer a.m.RUnlock()
+	h.m.RLock()
+	defer h.m.RUnlock()
 
-	if v, ok := a.answerers[names.FQDN(q.Name)]; ok {
-		return v.Answer(ctx, r, s, q, m)
+	if v, ok := h.handlers[names.FQDN(q.Name)]; ok {
+		return v.HandleQuestion(ctx, req, res, q)
 	}
 
 	return nil
 }
 
-// serviceTypeEnumerator is an answerer that responds with a list of services
-// types within a specific domain.
+// serviceTypeEnumerator is an mdns.Handler that responds with a list of
+// service types within a specific domain.
 //
 // See https://tools.ietf.org/html/rfc6763#section-9
 type serviceTypeEnumerator struct {
 	domain *Domain
 }
 
-func (a *serviceTypeEnumerator) Answer(
+func (h *serviceTypeEnumerator) HandleQuestion(
 	ctx context.Context,
-	r resolver.Resolver,
-	s net.Addr,
+	req *mdns.Request,
+	res *mdns.Response,
 	q dns.Question,
-	m *dns.Msg,
 ) error {
 	switch q.Qtype {
 	case dns.TypePTR, dns.TypeANY:
-		for _, s := range a.domain.Services {
+		for _, s := range h.domain.Services {
 			if r, ok := s.PTR(); ok {
-				m.Answer = append(m.Answer, r)
+				res.AppendAnswer(r)
 			}
 		}
 	}
@@ -155,28 +152,25 @@ func (a *serviceTypeEnumerator) Answer(
 	return nil
 }
 
-// instanceEnumerator is an answerer that responds with a list of instances
+// instanceEnumerator is an mdns.Handler that responds with a list of instances
 // of a specific service.
 //
 // See https://tools.ietf.org/html/rfc6763#section-4.
 type instanceEnumerator struct {
-	service *Service
+	resolver resolver.Resolver
+	service  *Service
 }
 
-func (a *instanceEnumerator) Answer(
+func (h *instanceEnumerator) HandleQuestion(
 	ctx context.Context,
-	r resolver.Resolver,
-	s net.Addr,
+	req *mdns.Request,
+	res *mdns.Response,
 	q dns.Question,
-	m *dns.Msg,
 ) error {
 	switch q.Qtype {
 	case dns.TypePTR, dns.TypeANY:
-		for _, i := range a.service.Instances {
-			m.Answer = append(
-				m.Answer,
-				i.PTR(),
-			)
+		for _, i := range h.service.Instances {
+			res.AppendAnswer(i.PTR())
 
 			// https://tools.ietf.org/html/rfc6763#section-12.1
 			//
@@ -187,12 +181,15 @@ func (a *instanceEnumerator) Answer(
 			// o  The SRV record(s) named in the PTR rdata.
 			// o  The TXT record(s) named in the PTR rdata.
 			// o  All address records (type "A" and "AAAA") named in the SRV rdata.
-			m.Extra = append(m.Extra, i.SRV(), i.TXT())
+			res.AppendAdditional(
+				i.SRV(),
+				i.TXT(),
+			)
 
 			// attempt to resolve the A/AAAA records, ignore on failure
-			if v4, v6, err := resolveAddressRecords(ctx, r, i); err == nil {
-				m.Extra = append(m.Extra, v4...)
-				m.Extra = append(m.Extra, v6...)
+			if v4, v6, err := resolveAddressRecords(ctx, h.resolver, i); err == nil {
+				res.AppendAdditional(v4...)
+				res.AppendAdditional(v6...)
 			}
 		}
 	}
@@ -200,36 +197,35 @@ func (a *instanceEnumerator) Answer(
 	return nil
 }
 
-// instanceAnswerer is an answerer that responds with DNS-SD records for a
+// instanceHandler is an mdns.Handler that responds with DNS-SD records for a
 // specific instance.
-type instanceAnswerer struct {
+type instanceHandler struct {
+	resolver resolver.Resolver
 	instance *Instance
 }
 
-func (a *instanceAnswerer) Answer(
+func (h *instanceHandler) HandleQuestion(
 	ctx context.Context,
-	r resolver.Resolver,
-	s net.Addr,
+	req *mdns.Request,
+	res *mdns.Response,
 	q dns.Question,
-	m *dns.Msg,
 ) error {
 	hasSRV := false
 
 	switch q.Qtype {
 	case dns.TypeANY:
 		hasSRV = true
-		m.Answer = append(
-			m.Answer,
-			a.instance.SRV(),
-			a.instance.TXT(),
+		res.AppendAnswer(
+			h.instance.SRV(),
+			h.instance.TXT(),
 		)
 
 	case dns.TypeSRV:
 		hasSRV = true
-		m.Answer = append(m.Answer, a.instance.SRV())
+		res.AppendAnswer(h.instance.SRV())
 
 	case dns.TypeTXT:
-		m.Answer = append(m.Answer, a.instance.TXT())
+		res.AppendAnswer(h.instance.TXT())
 	}
 
 	// https://tools.ietf.org/html/rfc6763#section-12.2
@@ -240,27 +236,27 @@ func (a *instanceAnswerer) Answer(
 	// o  All address records (type "A" and "AAAA") named in the SRV rdata.
 	if hasSRV {
 		// attempt to resolve the A/AAAA records, ignore on failure
-		if v4, v6, err := resolveAddressRecords(ctx, r, a.instance); err == nil {
-			m.Extra = append(m.Extra, v4...)
-			m.Extra = append(m.Extra, v6...)
+		if v4, v6, err := resolveAddressRecords(ctx, h.resolver, h.instance); err == nil {
+			res.AppendAdditional(v4...)
+			res.AppendAdditional(v6...)
 		}
 	}
 
 	return nil
 }
 
-// instanceAnswerer is an answerer that responds with the "A" records for a
+// instanceHandler is an answerer that responds with the "A" records for a
 // specific instance.
-type instanceHostAnswerer struct {
+type instanceHostHandler struct {
+	resolver resolver.Resolver
 	instance *Instance
 }
 
-func (a *instanceHostAnswerer) Answer(
+func (h *instanceHostHandler) HandleQuestion(
 	ctx context.Context,
-	r resolver.Resolver,
-	s net.Addr,
+	req *mdns.Request,
+	res *mdns.Response,
 	q dns.Question,
-	m *dns.Msg,
 ) error {
 	switch q.Qtype {
 	case dns.TypeA, dns.TypeAAAA, dns.TypeANY:
@@ -268,23 +264,23 @@ func (a *instanceHostAnswerer) Answer(
 		return nil
 	}
 
-	v4, v6, err := resolveAddressRecords(ctx, r, a.instance)
+	v4, v6, err := resolveAddressRecords(ctx, h.resolver, h.instance)
 	if err != nil {
 		return err
 	}
 
 	switch q.Qtype {
 	case dns.TypeANY:
-		m.Answer = append(m.Answer, v4...)
-		m.Answer = append(m.Answer, v6...)
+		res.AppendAnswer(v4...)
+		res.AppendAnswer(v6...)
 
 	case dns.TypeA:
-		m.Answer = append(m.Answer, v4...)
-		m.Extra = append(m.Extra, v6...)
+		res.AppendAnswer(v4...)
+		res.AppendAdditional(v6...)
 
 	case dns.TypeAAAA:
-		m.Answer = append(m.Answer, v6...)
-		m.Extra = append(m.Extra, v4...)
+		res.AppendAnswer(v6...)
+		res.AppendAdditional(v4...)
 	}
 
 	return nil
@@ -300,6 +296,10 @@ func resolveAddressRecords(
 	[]dns.RR,
 	error,
 ) {
+	if r == nil {
+		r = net.DefaultResolver
+	}
+
 	ips, err := r.LookupIPAddr(
 		ctx,
 		i.TargetHost.DNSString(),

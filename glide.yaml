@@ -6,3 +6,11 @@ import:
   version: ^1
 - package: github.com/onsi/gomega
   version: ^1
+- package: golang.org/x/net
+  subpackages:
+  - ipv4
+  - ipv6
+- package: golang.org/x/sync
+  subpackages:
+  - errgroup
+- package: github.com/grandcat/zeroconf

@@ -54,7 +54,7 @@ func (n InstanceName) FQDN() names.FQDN {
 type InstanceCollection map[names.Host]*Instance
 
 // DefaultTTL is the default TTL for all DNS records.
-const DefaultTTL = 30 * time.Second
+const DefaultTTL = 120 * time.Second
 
 // Instance is a DNS-SD service instance.
 type Instance struct {

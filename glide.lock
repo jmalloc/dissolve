@@ -1,6 +1,18 @@
-hash: c6825c7864bcd0e603b0f33da1bb755aac68dd02f1c2cf75e7358867b56719a6
-updated: 2018-08-08T09:38:56.390729681+10:00
+hash: 7eed1becd1f0ee9f07a7767e7d15fcdf1163f16e81b876314779eb0e701ecef5
+updated: 2018-08-09T12:14:15.825825256+10:00
 imports:
+- name: github.com/cenkalti/backoff
+  version: b7325b0f3f1097c6546ea5e83c4a23267e58ad71
+- name: github.com/davecgh/go-spew
+  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  subpackages:
+  - spew
+- name: github.com/grandcat/zeroconf
+  version: df75bb3ccae13e625e5b60e68d9c9590056dded1
+- name: github.com/jmalloc/twelf
+  version: 9f134de095cba6edc97910f8b38b313e354e6905
+  subpackages:
+  - src/twelf
 - name: github.com/miekg/dns
   version: 5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1
 - name: github.com/onsi/ginkgo
@@ -43,9 +55,10 @@ imports:
   - ed25519
   - ed25519/internal/edwards25519
 - name: golang.org/x/net
-  version: 19491d39cadbd9cd33f26ca22cc89ba4ba38251c
+  version: db08ff08e8622530d9ed3a0e8ac279f6d4c02196
   subpackages:
   - bpf
+  - context
   - html
   - html/atom
   - html/charset
@@ -53,6 +66,10 @@ imports:
   - internal/socket
   - ipv4
   - ipv6
+- name: golang.org/x/sync
+  version: 1d60e4601c6fd243af51cc01ddf169918a5407ca
+  subpackages:
+  - errgroup
 testImports:
 - name: github.com/hpcloud/tail
   version: a1dbeea552b7c8df4b542c66073e393de198a800
@@ -62,11 +79,11 @@ testImports:
   - watch
   - winfile
 - name: golang.org/x/sys
-  version: acbc56fc7007d2a01796d5bde54f39e3b3e95945
+  version: ad87a3a340fa7f3bed189293fbfa7a9b7e021ae1
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 17ff2d5776d28fa6ba2280c1053f7adf8d32eea6
+  version: 5cec4b58c438bd98288aeb248bab2c1840713d21
   subpackages:
   - encoding
   - encoding/charmap
