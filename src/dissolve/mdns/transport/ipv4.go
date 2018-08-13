@@ -27,13 +27,14 @@ var (
 
 // IPv4Transport is an IPv4-based UDP transport.
 type IPv4Transport struct {
-	Interfaces []net.Interface
-	Logger     twelf.Logger
-	pc         *ipvx.PacketConn
+	Logger twelf.Logger
+
+	ifaces []net.Interface
+	pc     *ipvx.PacketConn
 }
 
-// Listen starts listening for UDP packets over this interface.
-func (t *IPv4Transport) Listen() error {
+// Listen starts listening for UDP packets on the given interfaces.
+func (t *IPv4Transport) Listen(ifaces []net.Interface) error {
 	addr := IPv4ListenAddress
 	conn, err := net.ListenUDP("udp4", addr)
 	if err != nil {
@@ -41,22 +42,36 @@ func (t *IPv4Transport) Listen() error {
 		return err
 	}
 
-	logListening(t.Logger, addr)
-
 	t.pc = ipvx.NewPacketConn(conn)
-	t.pc.SetControlMessage(ipvx.FlagInterface, true)
 
-	if err := joinGroup(
-		t.pc,
-		IPv4Group,
-		t.Interfaces,
-		t.Logger,
-	); err != nil {
-		t.pc.Close()
+	err = t.pc.SetControlMessage(ipvx.FlagInterface, true)
+	if err != nil {
+		logListenError(t.Logger, addr, err)
 		return err
 	}
 
+	t.ifaces, err = joinGroup(
+		t.pc,
+		IPv4Group,
+		ifaces,
+		t.Logger,
+	)
+
+	if err != nil {
+		t.pc.Close()
+		logListenError(t.Logger, addr, err)
+		return err
+	}
+
+	logListening(t.Logger, addr, t.ifaces)
+
 	return nil
+}
+
+// Interfaces returns the set of interfaces on which the multicast group was
+// successfully joined.
+func (t *IPv4Transport) Interfaces() []net.Interface {
+	return t.ifaces
 }
 
 // Read reads the next packet from the transport.

@@ -11,8 +11,12 @@ const Port = 5353
 
 // Transport is an interface for communicating via UDP.
 type Transport interface {
-	// Listen starts listening for UDP packets over this interface.
-	Listen() error
+	// Listen starts listening for UDP packets on the given interfaces.
+	Listen(ifaces []net.Interface) error
+
+	// Interfaces returns the set of interfaces on which the multicast group was
+	// successfully joined.
+	Interfaces() []net.Interface
 
 	// Read reads the next packet from the transport.
 	Read() (*InboundPacket, error)

@@ -18,11 +18,12 @@ func joinGroup(
 	group net.IP,
 	ifaces []net.Interface,
 	logger twelf.Logger,
-) error {
-	ok := false
+) ([]net.Interface, error) {
 	addr := &net.UDPAddr{
 		IP: group,
 	}
+
+	joined := make([]net.Interface, 0, len(ifaces))
 
 	for _, i := range ifaces {
 		if err := pc.JoinGroup(&i, addr); err != nil {
@@ -32,18 +33,16 @@ func joinGroup(
 				i.Name,
 				err,
 			)
-
-			continue
+		} else {
+			joined = append(joined, i)
 		}
-
-		ok = true
 	}
 
-	if ok {
-		return nil
+	if len(joined) > 0 {
+		return joined, nil
 	}
 
-	return fmt.Errorf(
+	return nil, fmt.Errorf(
 		"unable to join the '%s' multicast group on any interfaces",
 		addr.IP,
 	)

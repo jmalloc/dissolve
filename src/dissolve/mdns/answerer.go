@@ -3,7 +3,6 @@ package mdns
 import (
 	"context"
 
-	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
 	"github.com/miekg/dns"
 )
 
@@ -18,8 +17,8 @@ type Answerer interface {
 type Question struct {
 	dns.Question
 
-	Query  *dns.Msg
-	Source transport.Endpoint
+	Query          *dns.Msg
+	InterfaceIndex int
 }
 
 // Answer is an answer to a DNS question.

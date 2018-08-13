@@ -27,13 +27,14 @@ var (
 
 // IPv6Transport is an IPv6-based UDP transport.
 type IPv6Transport struct {
-	Interfaces []net.Interface
-	Logger     twelf.Logger
-	pc         *ipvx.PacketConn
+	Logger twelf.Logger
+
+	ifaces []net.Interface
+	pc     *ipvx.PacketConn
 }
 
-// Listen starts listening for UDP packets over this interface.
-func (t *IPv6Transport) Listen() error {
+// Listen starts listening for UDP packets on the given interfaces.
+func (t *IPv6Transport) Listen(ifaces []net.Interface) error {
 	addr := IPv6ListenAddress
 	conn, err := net.ListenUDP("udp6", addr)
 	if err != nil {
@@ -41,22 +42,36 @@ func (t *IPv6Transport) Listen() error {
 		return err
 	}
 
-	logListening(t.Logger, addr)
-
 	t.pc = ipvx.NewPacketConn(conn)
-	t.pc.SetControlMessage(ipvx.FlagInterface, true)
 
-	if err := joinGroup(
-		t.pc,
-		IPv6Group,
-		t.Interfaces,
-		t.Logger,
-	); err != nil {
-		t.pc.Close()
+	err = t.pc.SetControlMessage(ipvx.FlagInterface, true)
+	if err != nil {
+		logListenError(t.Logger, addr, err)
 		return err
 	}
 
+	t.ifaces, err = joinGroup(
+		t.pc,
+		IPv6Group,
+		ifaces,
+		t.Logger,
+	)
+
+	if err != nil {
+		t.pc.Close()
+		logListenError(t.Logger, addr, err)
+		return err
+	}
+
+	logListening(t.Logger, addr, t.ifaces)
+
 	return nil
+}
+
+// Interfaces returns the set of interfaces on which the multicast group was
+// successfully joined.
+func (t *IPv6Transport) Interfaces() []net.Interface {
+	return t.ifaces
 }
 
 // Read reads the next packet from the transport.

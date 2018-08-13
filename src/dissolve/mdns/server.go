@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"net"
-	"sync"
+	"time"
 
 	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
+	"github.com/jmalloc/dissolve/src/dissolve/names"
 
 	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/miekg/dns"
@@ -20,6 +21,10 @@ type Server struct {
 	disableIPv4 bool
 	disableIPv6 bool
 	logger      twelf.Logger
+
+	done    chan struct{}
+	packets chan *transport.InboundPacket
+	acquire chan acquireRequest
 }
 
 // ServerOption is a function that applies an option to a server created by
@@ -64,6 +69,9 @@ func NewServer(
 ) (*Server, error) {
 	s := &Server{
 		answerer: answerer,
+		done:     make(chan struct{}),
+		packets:  make(chan *transport.InboundPacket),
+		acquire:  make(chan acquireRequest),
 	}
 
 	for _, opt := range options {
@@ -88,6 +96,12 @@ func NewServer(
 	return s, nil
 }
 
+type acquireRequest struct {
+	names []names.FQDN
+	acq   bool
+	reply chan error
+}
+
 // Acquire attempts to "take control" of the given DNS name by probing the
 // network to see if any other mDNS responder is already responding for that
 // name.
@@ -95,13 +109,35 @@ func NewServer(
 // Once acquired, the name is "defended" against other mDNS responders taking
 // control of the name. See https://tools.ietf.org/html/rfc6762#section-8.1 for
 // information on mDNS probing.
-func (s *Server) Acquire(ctx context.Context, name string) error {
-	panic("ni")
+func (s *Server) Acquire(ctx context.Context, name ...names.FQDN) error {
+	return s.enqueueAcquire(ctx, name, true)
 }
 
 // Release stops the server from "defending" a name that was previously acquired.
-func (s *Server) Release(ctx context.Context, name string) error {
-	panic("ni")
+func (s *Server) Release(ctx context.Context, name ...names.FQDN) error {
+	return s.enqueueAcquire(ctx, name, false)
+}
+
+// enqueueAcquire enqueues an acquireRequest and waits for a reply.
+func (s *Server) enqueueAcquire(ctx context.Context, names []names.FQDN, acq bool) error {
+	ch := make(chan error, 1)
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.done:
+		return errors.New("server is no longer running")
+	case s.acquire <- acquireRequest{names, acq, ch}:
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.done:
+		return errors.New("server is no longer running")
+	case err := <-ch:
+		return err
+	}
 }
 
 // Run response to mDNS messages until ctx is canceled or an error occurs.
@@ -110,6 +146,9 @@ func (s *Server) Run(ctx context.Context) error {
 		return errors.New("both IPv4 and IPv6 are disabled")
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	if !s.disableIPv4 {
@@ -117,8 +156,7 @@ func (s *Server) Run(ctx context.Context) error {
 			return s.receive(
 				ctx,
 				&transport.IPv4Transport{
-					Interfaces: s.ifaces,
-					Logger:     s.logger,
+					Logger: s.logger,
 				},
 			)
 		})
@@ -129,12 +167,15 @@ func (s *Server) Run(ctx context.Context) error {
 			return s.receive(
 				ctx,
 				&transport.IPv6Transport{
-					Interfaces: s.ifaces,
-					Logger:     s.logger,
+					Logger: s.logger,
 				},
 			)
 		})
 	}
+
+	g.Go(func() error {
+		return s.run(ctx)
+	})
 
 	err := g.Wait()
 
@@ -145,8 +186,49 @@ func (s *Server) Run(ctx context.Context) error {
 	return err
 }
 
-// handle handles a DNS message in a UDP packet.
-func (s *Server) handle(ctx context.Context, in *transport.InboundPacket) {
+// run is the server's main loop.
+func (s *Server) run(ctx context.Context) error {
+	defer close(s.done)
+
+	// When ready to send its Multicast DNS probe packet(s) the host should
+	// first wait for a short random delay time, uniformly distributed in
+	// the range 0-250 ms.  This random delay is to guard against the case
+	// where several devices are powered on simultaneously, or several
+	// devices are connected to an Ethernet hub, which is then powered on,
+	// or some other external event happens that might cause a group of
+	// hosts to all send synchronized probes.
+	if err := sleep(ctx, randT(250*time.Millisecond)); err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case in := <-s.packets:
+			s.handlePacket(ctx, in)
+		case r := <-s.acquire:
+			if r.acq {
+				r.reply <- s.handleAcquire(ctx, r.names)
+			} else {
+				r.reply <- s.handleRelease(ctx, r.names)
+			}
+		}
+	}
+}
+
+// handleAcquire handles a request to acquire a unique name.
+func (s *Server) handleAcquire(ctx context.Context, names []names.FQDN) error {
+	panic("ni")
+}
+
+// handleRelease handles a request to release a unique name.
+func (s *Server) handleRelease(ctx context.Context, names []names.FQDN) error {
+	return nil
+}
+
+// handlePacket handles a DNS message in a UDP packet.
+func (s *Server) handlePacket(ctx context.Context, in *transport.InboundPacket) {
 	defer in.Close()
 
 	m, err := in.Message()
@@ -207,9 +289,9 @@ func (s *Server) handleQuery(
 
 		var (
 			q = Question{
-				Question: dnsQ,
-				Query:    query,
-				Source:   in.Source,
+				Question:       dnsQ,
+				Query:          query,
+				InterfaceIndex: in.Source.InterfaceIndex,
 			}
 			a = Answer{}
 		)
@@ -257,24 +339,17 @@ func (s *Server) handleResponse(
 	return nil
 }
 
-// receive starts goroutines to handle each DNS message received via t.
+// receive pipes packets received from t to s.packets
 func (s *Server) receive(ctx context.Context, t transport.Transport) error {
-	if err := t.Listen(); err != nil {
+	if err := t.Listen(s.ifaces); err != nil {
 		return err
 	}
 	defer t.Close()
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	go func() {
 		<-ctx.Done()
-		cancel()      // cancel calls to s.handle()
 		_ = t.Close() // break out of t.Read() when the context is canceled
 	}()
-
-	var g sync.WaitGroup
-	defer g.Wait()
 
 	for {
 		in, err := t.Read()
@@ -283,10 +358,10 @@ func (s *Server) receive(ctx context.Context, t transport.Transport) error {
 			return err
 		}
 
-		g.Add(1)
-		go func() {
-			defer g.Done()
-			s.handle(ctx, in)
-		}()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case s.packets <- in:
+		}
 	}
 }

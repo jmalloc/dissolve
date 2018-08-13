@@ -2,12 +2,26 @@ package transport
 
 import (
 	"net"
+	"sort"
+	"strings"
 
 	"github.com/jmalloc/twelf/src/twelf"
 )
 
-func logListening(logger twelf.Logger, addr *net.UDPAddr) {
-	logger.Debug("listening for mDNS requests on %s", addr)
+func logListening(logger twelf.Logger, addr *net.UDPAddr, ifaces []net.Interface) {
+	names := make([]string, len(ifaces))
+
+	for i, iface := range ifaces {
+		names[i] = iface.Name
+	}
+
+	sort.Strings(names)
+
+	logger.Debug(
+		"listening for mDNS requests on %s (%s)",
+		addr,
+		strings.Join(names, ", "),
+	)
 }
 
 func logListenError(logger twelf.Logger, addr *net.UDPAddr, err error) {
