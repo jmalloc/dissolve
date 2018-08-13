@@ -2,16 +2,11 @@ package mdns
 
 import "github.com/miekg/dns"
 
-// Response is a response to an mDNS request.
-type Response struct {
-	Message *dns.Msg
-}
-
-// NewResponse returns a new (empty) response to a mDNS request.
+// newResponse returns a new (empty) response to a mDNS query.
 //
 // See https://tools.ietf.org/html/rfc6762#section-6 and
 // https://tools.ietf.org/html/rfc6762#section-18.
-func NewResponse(query *dns.Msg, unicast bool) *Response {
+func newResponse(query *dns.Msg, unicast bool) *dns.Msg {
 	m := &dns.Msg{}
 	m.SetReply(query)
 
@@ -75,17 +70,5 @@ func NewResponse(query *dns.Msg, unicast bool) *Response {
 	// earlier in the message [RFC1035].
 	m.Compress = true
 
-	return &Response{m}
-}
-
-// AppendAnswer appends resource records to the "answer" section of the response
-// message.
-func (r *Response) AppendAnswer(records ...dns.RR) {
-	r.Message.Answer = append(r.Message.Answer, records...)
-}
-
-// AppendAdditional appends resource records to the "additional" section of the
-// response message (called "extra" by the "dns" package).
-func (r *Response) AppendAdditional(records ...dns.RR) {
-	r.Message.Extra = append(r.Message.Extra, records...)
+	return m
 }

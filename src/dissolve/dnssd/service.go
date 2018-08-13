@@ -1,28 +1,21 @@
 package dnssd
 
 import (
+	"fmt"
+
 	"github.com/jmalloc/dissolve/src/dissolve/names"
 	"github.com/miekg/dns"
 )
 
-// ServiceCollection is the map of service name (such as "_http._tcp") to the
+// ServiceCollection is the map of service type (such as "_http._tcp") to the
 // service.
-type ServiceCollection map[names.Rel]*Service
-
-// InstanceEnumerationDomain returns the DNS name that is queried to perform
-// "service instance enumeration" (aka "browse") on a service within a given
-// domain.
-//
-// See https://tools.ietf.org/html/rfc6763#section-4.
-func InstanceEnumerationDomain(service names.Rel, domain names.FQDN) names.FQDN {
-	return service.Qualify(domain)
-}
+type ServiceCollection map[ServiceType]*Service
 
 // Service represents a DNS-SD service.
 type Service struct {
-	// Name is the DNS-SD service name, including the protocol, such as
+	// Type is the DNS-SD service type, including the protocol, such as
 	// "_http._tcp".
-	Name names.Rel
+	Type ServiceType
 
 	// Domain is the fully-qualified name of the domain that the service is
 	// advertised within. For example, Bonjour typically uses "local."
@@ -39,7 +32,7 @@ type Service struct {
 //
 // See https://tools.ietf.org/html/rfc6763#section-4.
 func (s *Service) InstanceEnumerationDomain() names.FQDN {
-	return InstanceEnumerationDomain(s.Name, s.Domain)
+	return InstanceEnumerationDomain(s.Type, s.Domain)
 }
 
 // PTR returns the service's PTR record as queried when performing "service type
@@ -64,20 +57,47 @@ func (s *Service) PTR() (*dns.PTR, bool) {
 
 	return &dns.PTR{
 		Hdr: dns.RR_Header{
-			Name:   ServiceTypeEnumerationDomain(s.Domain).DNSString(),
+			Name:   TypeEnumerationDomain(s.Domain).String(),
 			Rrtype: dns.TypePTR,
 			Class:  dns.ClassINET,
 			Ttl:    ttl,
 		},
-		Ptr: s.InstanceEnumerationDomain().DNSString(),
+		Ptr: s.InstanceEnumerationDomain().String(),
 	}, true
 }
 
 // Validate returns an error if the service is configured incorrectly.
 func (s *Service) Validate() error {
-	if err := s.Name.Validate(); err != nil {
+	if err := s.Type.Validate(); err != nil {
 		return err
 	}
 
-	return s.Domain.Validate()
+	if err := s.Domain.Validate(); err != nil {
+		return err
+	}
+
+	for n, i := range s.Instances {
+		if i.Name != n {
+			return fmt.Errorf(
+				"service instance '%s' is stored under the  '%s' key",
+				string(i.Name), // don't use .String()
+				string(n),
+			)
+		}
+
+		if i.ServiceType != s.Type {
+			return fmt.Errorf(
+				"service instance '%s' has type '%s', expected '%s'",
+				string(i.Name), // don't use .String()
+				i.ServiceType,
+				s.Type,
+			)
+		}
+
+		if err := i.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -2,7 +2,6 @@ package dnssd
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"time"
 
@@ -10,103 +9,70 @@ import (
 	"github.com/miekg/dns"
 )
 
-// InstanceName is a fully-qualified instance name.
-type InstanceName struct {
-	Name    names.Host
-	Service names.Rel
-	Domain  names.FQDN
-}
-
-// NewInstanceName returns a new fully-qualified instance name from its
-// name, service and domain components.
-func NewInstanceName(n, s, d string) (InstanceName, error) {
-	v := InstanceName{
-		names.Host(n),
-		names.Rel(n),
-		names.FQDN(n),
-	}
-
-	return v, v.Validate()
-}
-
-// Validate returns an error if the name is malformed.
-func (n InstanceName) Validate() error {
-	if err := n.Name.Validate(); err != nil {
-		return err
-	}
-
-	if err := n.Service.Validate(); err != nil {
-		return err
-	}
-
-	return n.Domain.Validate()
-}
-
-// FQDN returns the FQDN of the instance name.
-func (n InstanceName) FQDN() names.FQDN {
-	return n.Name.Qualify(
-		n.Service.Qualify(n.Domain),
-	)
-}
-
-// InstanceCollection is the map of the unqualified service instance name to the
-// instance.
-type InstanceCollection map[names.Host]*Instance
-
 // DefaultTTL is the default TTL for all DNS records.
 const DefaultTTL = 120 * time.Second
 
+// InstanceCollection is the map of the unqualified service instance name to the
+// instance.
+type InstanceCollection map[InstanceName]*Instance
+
 // Instance is a DNS-SD service instance.
 type Instance struct {
-	InstanceName
+	// Name is the instance's unique name.
+	Name InstanceName
 
-	// TargetHost is the fully-qualified hostname of the service. This is not
-	// necessarily in the same domain under which discovery is performed.
-	TargetHost names.FQDN
+	// ServiceType is the type of service that this instance is.
+	ServiceType ServiceType
+
+	// Domain is the domain under which the instance is advertised.
+	Domain names.FQDN
+
+	// TargetHost is the hostname of the service. This is not necessarily in the
+	// same domain as the DNS-SD records.
+	//
+	// If TargetHost is unqualified, it is assumed to be relative to Domain.
+	TargetHost names.Name
 
 	// TargetPort is TCP/UDP port that the service instance listens on.
 	TargetPort uint16
 
 	// Text contains a set of key/value pairs that are encoded in the instance's
 	// TXT record, as per https://tools.ietf.org/html/rfc6763#section-6.3.
-	Text map[string]string
+	Text Text
+
+	// Priority is the "service priority" value to use for the service's SRV
+	// record. It controls which servers are contacted first. Lower values have a
+	// higher priority.
+	//
+	// See https://tools.ietf.org/html/rfc2782.
+	Priority uint16
+
+	// Weight is the "service weight" value to use for the service's SRV record.
+	// It controls the likelihood that a server will be chosen from a pool of SRV
+	// records with the same priority. Higher values are more likely to be chosen.
+	//
+	// See https://tools.ietf.org/html/rfc2782.
+	Weight uint16
 
 	// TTL is the TTL of the instance's DNS records.
 	TTL time.Duration
 }
 
-// NewInstance returns a new service instance.
-func NewInstance(
-	name, service, domain string,
-	host string, port uint16,
-) (*Instance, error) {
-	i := &Instance{
-		InstanceName: InstanceName{
-			names.Host(name),
-			names.Rel(service),
-			names.FQDN(domain),
-		},
-		TargetHost: names.FQDN(host),
-		TargetPort: port,
-	}
-
-	if err := i.Validate(); err != nil {
-		return nil, err
-	}
-
-	return i, nil
+// FQDN returns the instance's fully-qualified domain name.
+func (i *Instance) FQDN() names.FQDN {
+	return i.Name.Join(i.ServiceType).Qualify(i.Domain)
 }
 
 // PTR returns the instance's PTR record.
 func (i *Instance) PTR() *dns.PTR {
 	return &dns.PTR{
 		Hdr: dns.RR_Header{
-			Name:   InstanceEnumerationDomain(i.Service, i.Domain).DNSString(),
+			Name:   InstanceEnumerationDomain(i.ServiceType, i.Domain).String(),
 			Rrtype: dns.TypePTR,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),
 		},
-		Ptr: i.InstanceName.FQDN().DNSString(),
+		Ptr: i.FQDN().String(),
 	}
 }
 
@@ -114,44 +80,36 @@ func (i *Instance) PTR() *dns.PTR {
 func (i *Instance) SRV() *dns.SRV {
 	return &dns.SRV{
 		Hdr: dns.RR_Header{
-			Name:   i.InstanceName.FQDN().DNSString(),
+			Name:   i.FQDN().String(),
 			Rrtype: dns.TypeSRV,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),
 		},
-		Priority: 10, // TODO(jmalloc): support priority and weight
-		Weight:   1,
-		Target:   i.TargetHost.DNSString(),
+		Priority: i.Priority,
+		Weight:   i.Weight,
+		Target:   i.TargetHost.Qualify(i.Domain).String(),
 		Port:     i.TargetPort,
 	}
 }
 
 // TXT returns the instance's TXT record.
 func (i *Instance) TXT() *dns.TXT {
-	r := &dns.TXT{
+	return &dns.TXT{
 		Hdr: dns.RR_Header{
-			Name:   i.InstanceName.FQDN().DNSString(),
+			Name:   i.FQDN().String(),
 			Rrtype: dns.TypeTXT,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),
 		},
+		Txt: i.Text.Pairs(),
 	}
-
-	for k, v := range i.Text {
-		r.Txt = append(
-			r.Txt,
-			fmt.Sprintf("%s=%s", k, v),
-		)
-	}
-
-	return r
 }
 
 // A returns an instance's A record for the instance.
 func (i *Instance) A(ip net.IP) *dns.A {
 	return &dns.A{
 		Hdr: dns.RR_Header{
-			Name:   i.TargetHost.DNSString(),
+			Name:   i.TargetHost.Qualify(i.Domain).String(),
 			Rrtype: dns.TypeA,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),
@@ -164,7 +122,7 @@ func (i *Instance) A(ip net.IP) *dns.A {
 func (i *Instance) AAAA(ip net.IP) *dns.AAAA {
 	return &dns.AAAA{
 		Hdr: dns.RR_Header{
-			Name:   i.TargetHost.DNSString(),
+			Name:   i.TargetHost.Qualify(i.Domain).String(),
 			Rrtype: dns.TypeAAAA,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),
@@ -190,7 +148,7 @@ func (i *Instance) Validate() error {
 		return err
 	}
 
-	if err := i.Service.Validate(); err != nil {
+	if err := i.ServiceType.Validate(); err != nil {
 		return err
 	}
 

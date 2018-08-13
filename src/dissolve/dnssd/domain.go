@@ -1,18 +1,10 @@
 package dnssd
 
 import (
+	"fmt"
+
 	"github.com/jmalloc/dissolve/src/dissolve/names"
 )
-
-// ServiceTypeEnumerationDomain returns the DNS name that is queried to perform
-// "service type enumeration" for a given domain.
-//
-// See https://tools.ietf.org/html/rfc6763#section-9
-func ServiceTypeEnumerationDomain(domain names.FQDN) names.FQDN {
-	return serviceTypeEnum.Qualify(domain)
-}
-
-var serviceTypeEnum = names.MustParseRel("_services._dns-sd._udp")
 
 // DomainCollection is the map of domain name to domain.
 type DomainCollection map[names.FQDN]*Domain
@@ -27,15 +19,42 @@ type Domain struct {
 	Services ServiceCollection
 }
 
-// ServiceTypeEnumerationDomain returns DNS name that is queried perform
-// "service type enumeration" for this domain.
+// TypeEnumerationDomain returns DNS name that is queried perform "service type
+// enumeration" for this domain.
 //
 // See https://tools.ietf.org/html/rfc6763#section-4.
-func (d *Domain) ServiceTypeEnumerationDomain() names.FQDN {
-	return ServiceTypeEnumerationDomain(d.Name)
+func (d *Domain) TypeEnumerationDomain() names.FQDN {
+	return TypeEnumerationDomain(d.Name)
+}
+
+// SubTypeEnumerationDomain returns the DNS name that is queried to perform
+// "selective instance enumeration" for a specific service sub-type within this
+// domain.
+//
+// See https://tools.ietf.org/html/rfc6763#section-7.1
+func (d *Domain) SubTypeEnumerationDomain(subtype names.Label, service names.UDN) names.FQDN {
+	return SubTypeEnumerationDomain(subtype, service, d.Name)
 }
 
 // Validate returns an error if the service is configured incorrectly.
 func (d *Domain) Validate() error {
-	return d.Name.Validate()
+	if err := d.Name.Validate(); err != nil {
+		return err
+	}
+
+	for t, s := range d.Services {
+		if s.Type != t {
+			return fmt.Errorf(
+				"service '%s' is stored under the  '%s' key",
+				s.Type,
+				t,
+			)
+		}
+
+		if err := s.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

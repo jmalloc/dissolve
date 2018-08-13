@@ -9,25 +9,9 @@ import (
 // FQDN is a fully-qualified internet domain name.
 type FQDN string
 
-// ParseFQDN parses n as a FQDN.
-func ParseFQDN(n string) (FQDN, error) {
-	v := FQDN(n)
-	return v, v.Validate()
-}
-
-// MustParseFQDN parses n as a FQDN.
-// It panics if n is invalid.
-func MustParseFQDN(n string) FQDN {
-	v, err := ParseFQDN(n)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// IsRelative returns false.
-func (n FQDN) IsRelative() bool {
-	return false
+// IsQualified returns true.
+func (n FQDN) IsQualified() bool {
+	return true
 }
 
 // Qualify returns n unchanged.
@@ -35,22 +19,47 @@ func (n FQDN) Qualify(FQDN) FQDN {
 	return n
 }
 
-// Split splits the "hostname" from the name.
-// If the name does not contain any dots, tail is nil.
-func (n FQDN) Split() (head Host, tail Name) {
-	s := string(n)
+// Labels returns the DNS labels that form this name.
+// It panics if the name is not valid.
+func (n FQDN) Labels() []Label {
+	s := n.String()
+	var labels []Label
+
+	for {
+		i := strings.Index(s, ".")
+		if i == -1 {
+			return labels
+		}
+
+		labels = append(labels, Label(s[:i]))
+		s = s[i+1:]
+	}
+}
+
+// Split splits the first label from the name.
+// If the name only has single label, tail is nil.
+// It panics if the name is not valid.
+func (n FQDN) Split() (head Label, tail Name) {
+	s := n.String()
 	i := strings.Index(s, ".")
 
-	if i == -1 {
-		panic(n.Validate())
+	head = Label(s[:i])
+
+	if i != len(s)-1 {
+		tail = FQDN(s[i:])
 	}
 
-	if i != len(n)-1 {
-		tail = FQDN(s[i+1:])
-	}
-
-	head = MustParseHost(s[:i])
 	return
+}
+
+// Join returns a name produced by concatenating this name with s.
+// It panics if this name is fully qualified.
+func (n FQDN) Join(s Name) Name {
+	panic(fmt.Sprintf(
+		"can not join '%s' to '%s', left-hand-side is already fully-qualified",
+		n,
+		s,
+	))
 }
 
 // Validate returns nil if the name is valid.
@@ -59,31 +68,23 @@ func (n FQDN) Validate() error {
 		return errors.New("fully-qualified name must not be empty")
 	}
 
-	s := string(n)
-
-	if strings.HasPrefix(s, ".") {
+	if n[0] == '.' {
 		return fmt.Errorf("fully-qualified name '%s' is invalid, unexpected leading dot", n)
 	}
 
-	if !strings.HasSuffix(s, ".") {
+	if n[len(n)-1] != '.' {
 		return fmt.Errorf("fully-qualified name '%s' is invalid, missing trailing dot", n)
 	}
 
 	return nil
 }
 
-// String returns a human-readable representation of the name.
+// String returns a representation of the name as used by DNS systems.
+// It panics if the name is not valid.
 func (n FQDN) String() string {
-	return string(n)
-}
+	if err := n.Validate(); err != nil {
+		panic(err)
+	}
 
-// DNSString returns the string representation of the FQDN for use with DNS systems.
-func (n FQDN) DNSString() string {
 	return string(n)
-}
-
-// CommonString returns the "common" string representation of the FQDN, that is
-// without the trailing dot.
-func (n FQDN) CommonString() string {
-	return strings.TrimSuffix(string(n), ".")
 }

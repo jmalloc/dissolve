@@ -2,33 +2,44 @@ package main
 
 import (
 	"context"
+	"log"
+	"net"
 
-	"github.com/jmalloc/dissolve/src/dissolve/dnssd"
 	"github.com/jmalloc/dissolve/src/dissolve/mdns"
 	"github.com/jmalloc/twelf/src/twelf"
+	"github.com/miekg/dns"
 )
 
+type answerer struct {
+}
+
+func (answerer) Answer(ctx context.Context, q *mdns.Question, a *mdns.Answer) error {
+	if q.Name == "foo.bar.local." {
+		a.Unique.Answer(&dns.A{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    120,
+			},
+			A: net.ParseIP("192.168.60.36"),
+		})
+	}
+
+	return nil
+}
+
 func main() {
-	h := &dnssd.Handler{
-		Resolver: mdns.NewLocalResolver(nil),
-	}
-
-	server := &mdns.Server{
-		Handler: h,
-		Logger:  twelf.DebugLogger,
-	}
-
-	i, err := dnssd.NewInstance(
-		"svc7", "_dissolve._tcp", "local.",
-		"test7.dissolve.local.", 8080,
+	svr, err := mdns.NewServer(
+		answerer{},
+		mdns.UseLogger(twelf.DebugLogger),
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	h.AddInstance(i)
-
-	if err := server.Run(context.Background()); err != nil {
-		panic(err)
+	err = svr.Run(context.Background())
+	if err != nil {
+		log.Fatal(err)
 	}
 }

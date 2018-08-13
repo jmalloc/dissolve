@@ -2,10 +2,12 @@ package names
 
 import "strings"
 
-// Name is an internet name of some kind.
+// Name is an DNS name of some kind.
+//
+// Any of the methods except Validate() MAY panic if the name is invalid.
 type Name interface {
-	// IsRelative returns true if the name is relative.
-	IsRelative() bool
+	// IsQualified returns true if the name is fully-qualified.
+	IsQualified() bool
 
 	// Qualify returns a fully-qualified domain name produced by "qualifying"
 	// this name with f.
@@ -13,14 +15,22 @@ type Name interface {
 	// If this name is already qualified, it is returned unchanged.
 	Qualify(f FQDN) FQDN
 
-	// Split splits the "hostname" from the name.
-	// If the name does not contain any dots, tail is nil.
-	Split() (head Host, tail Name)
+	// Labels returns the DNS labels that form this name.
+	Labels() []Label
+
+	// Split splits the first label from the name.
+	// If the name only has single label, tail is nil.
+	Split() (head Label, tail Name)
+
+	// Join returns a name produced by concatenating this name with s.
+	// It panics if this name is fully qualified.
+	Join(s Name) Name
 
 	// Validate returns nil if the name is valid.
 	Validate() error
 
-	// String returns a human-readable string representation of the name.
+	// String returns a representation of the name as used by DNS systems.
+	// It panics if the name is not valid.
 	String() string
 }
 
@@ -28,13 +38,17 @@ type Name interface {
 func Parse(n string) (Name, error) {
 	i := strings.Index(n, ".")
 
+	var name Name
+
 	if i == -1 {
-		return ParseHost(n)
+		name = Label(n)
 	} else if i == len(n)-1 {
-		return ParseFQDN(n)
+		name = FQDN(n)
+	} else {
+		name = UDN(n)
 	}
 
-	return ParseRel(n)
+	return name, name.Validate()
 }
 
 // MustParse parses an arbitrary internet name.
