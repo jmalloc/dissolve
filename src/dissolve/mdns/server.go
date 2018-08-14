@@ -304,6 +304,8 @@ func (s *Server) handleQuery(
 		if !a.Unique.IsEmpty() {
 			// TODO(jmalloc): probe/announce uniquely-scoped records before
 			// providing answers to them.
+
+			// TODO(jmalloc): set the rrclass (?) bit to indicate unique responses
 		}
 
 		if unicast || legacy {
