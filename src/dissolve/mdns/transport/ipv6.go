@@ -29,12 +29,11 @@ var (
 type IPv6Transport struct {
 	Logger twelf.Logger
 
-	ifaces []net.Interface
-	pc     *ipvx.PacketConn
+	pc *ipvx.PacketConn
 }
 
 // Listen starts listening for UDP packets on the given interfaces.
-func (t *IPv6Transport) Listen(ifaces []net.Interface) error {
+func (t *IPv6Transport) Listen(iface *net.Interface) error {
 	addr := IPv6ListenAddress
 	conn, err := net.ListenUDP("udp6", addr)
 	if err != nil {
@@ -46,32 +45,23 @@ func (t *IPv6Transport) Listen(ifaces []net.Interface) error {
 
 	err = t.pc.SetControlMessage(ipvx.FlagInterface, true)
 	if err != nil {
+		t.pc.Close()
 		logListenError(t.Logger, addr, err)
 		return err
 	}
 
-	t.ifaces, err = joinGroup(
-		t.pc,
-		IPv6Group,
-		ifaces,
-		t.Logger,
-	)
-
+	err = t.pc.JoinGroup(iface, &net.UDPAddr{
+		IP: IPv6Group,
+	})
 	if err != nil {
 		t.pc.Close()
 		logListenError(t.Logger, addr, err)
 		return err
 	}
 
-	logListening(t.Logger, addr, t.ifaces)
+	logListening(t.Logger, addr, iface)
 
 	return nil
-}
-
-// Interfaces returns the set of interfaces on which the multicast group was
-// successfully joined.
-func (t *IPv6Transport) Interfaces() []net.Interface {
-	return t.ifaces
 }
 
 // Read reads the next packet from the transport.

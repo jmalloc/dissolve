@@ -1,4 +1,4 @@
-package mdns
+package responder
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 //+build debug
 
-package mdns
+package responder
 
 import (
 	"fmt"

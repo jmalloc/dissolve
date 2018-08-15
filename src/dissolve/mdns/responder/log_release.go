@@ -1,6 +1,6 @@
 //+build !debug
 
-package mdns
+package responder
 
 import (
 	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"

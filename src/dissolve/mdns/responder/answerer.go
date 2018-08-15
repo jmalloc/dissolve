@@ -1,7 +1,8 @@
-package mdns
+package responder
 
 import (
 	"context"
+	"net"
 
 	"github.com/miekg/dns"
 )
@@ -17,8 +18,8 @@ type Answerer interface {
 type Question struct {
 	dns.Question
 
-	Query          *dns.Msg
-	InterfaceIndex int
+	Query     *dns.Msg
+	Interface net.Interface
 }
 
 // Answer is an answer to a DNS question.

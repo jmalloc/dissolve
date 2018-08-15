@@ -1,6 +1,11 @@
-package mdns
+package responder
 
-import "github.com/miekg/dns"
+import (
+	"context"
+
+	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
+	"github.com/miekg/dns"
+)
 
 // newResponse returns a new (empty) response to a mDNS query.
 //
@@ -71,4 +76,17 @@ func newResponse(query *dns.Msg, unicast bool) *dns.Msg {
 	m.Compress = true
 
 	return m
+}
+
+// handleResponse is a server command that handles a multicast DNS response.
+type handleResponse struct {
+	Packet  *transport.InboundPacket
+	Message *dns.Msg
+}
+
+func (c *handleResponse) Execute(ctx context.Context, r *Responder) error {
+	defer c.Packet.Close()
+	// TODO(jmalloc): we need to "defend" our records here
+	// https://tools.ietf.org/html/rfc6762#section-9
+	return nil
 }
