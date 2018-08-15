@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/jmalloc/dissolve/src/dissolve/mdns"
+
 	"github.com/miekg/dns"
 )
 
@@ -47,8 +49,27 @@ type Answer struct {
 
 // appendToMessage appends the answer's records to m.
 func (a *Answer) appendToMessage(m *dns.Msg) {
-	a.Unique.appendToMessage(m)
-	a.Shared.appendToMessage(m)
+	m.Answer = appendUnique(m.Answer, a.Unique.AnswerSection)
+	m.Ns = appendUnique(m.Ns, a.Unique.AuthoritySection)
+	m.Extra = appendUnique(m.Extra, a.Unique.AdditionalSection)
+
+	m.Answer = append(m.Answer, a.Shared.AnswerSection...)
+	m.Ns = append(m.Ns, a.Shared.AuthoritySection...)
+	m.Extra = append(m.Extra, a.Shared.AdditionalSection...)
+
+}
+
+// appendUnique appends copies of the records in source to target, with the
+// "unique record" bit set.
+func appendUnique(target, source []dns.RR) []dns.RR {
+	for _, r := range source {
+		target = append(
+			target,
+			mdns.SetUniqueRecord(r),
+		)
+	}
+
+	return target
 }
 
 // ResponseSections contains the various response sections of a response to a
@@ -79,11 +100,4 @@ func (rs *ResponseSections) Authority(records ...dns.RR) {
 // Additional appends records to the "additional" section of the answer.
 func (rs *ResponseSections) Additional(records ...dns.RR) {
 	rs.AdditionalSection = append(rs.AdditionalSection, records...)
-}
-
-// appendToMessage appends the records in each section to m.
-func (rs *ResponseSections) appendToMessage(m *dns.Msg) {
-	m.Answer = append(m.Answer, rs.AnswerSection...)
-	m.Ns = append(m.Ns, rs.AuthoritySection...)
-	m.Extra = append(m.Extra, rs.AdditionalSection...)
 }

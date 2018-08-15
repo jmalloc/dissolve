@@ -26,13 +26,13 @@ type Service struct {
 	Instances InstanceCollection
 }
 
-// InstanceEnumerationDomain returns the DNS name that is queried to perform
+// InstanceEnumDomain returns the DNS name that is queried to perform
 // "service instance enumeration" (aka "browse") on a service within this
 // domain.
 //
 // See https://tools.ietf.org/html/rfc6763#section-4.
-func (s *Service) InstanceEnumerationDomain() names.FQDN {
-	return InstanceEnumerationDomain(s.Type, s.Domain)
+func (s *Service) InstanceEnumDomain() names.FQDN {
+	return InstanceEnumDomain(s.Type, s.Domain)
 }
 
 // PTR returns the service's PTR record as queried when performing "service type
@@ -57,12 +57,12 @@ func (s *Service) PTR() (*dns.PTR, bool) {
 
 	return &dns.PTR{
 		Hdr: dns.RR_Header{
-			Name:   TypeEnumerationDomain(s.Domain).String(),
+			Name:   TypeEnumDomain(s.Domain).String(),
 			Rrtype: dns.TypePTR,
 			Class:  dns.ClassINET,
 			Ttl:    ttl,
 		},
-		Ptr: s.InstanceEnumerationDomain().String(),
+		Ptr: s.InstanceEnumDomain().String(),
 	}, true
 }
 

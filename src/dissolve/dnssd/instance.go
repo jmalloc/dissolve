@@ -63,11 +63,16 @@ func (i *Instance) FQDN() names.FQDN {
 	return i.Name.Join(i.ServiceType).Qualify(i.Domain)
 }
 
+// TargetFQDN returns the FQDN of the target host.
+func (i *Instance) TargetFQDN() names.FQDN {
+	return i.TargetHost.Qualify(i.Domain)
+}
+
 // PTR returns the instance's PTR record.
 func (i *Instance) PTR() *dns.PTR {
 	return &dns.PTR{
 		Hdr: dns.RR_Header{
-			Name:   InstanceEnumerationDomain(i.ServiceType, i.Domain).String(),
+			Name:   InstanceEnumDomain(i.ServiceType, i.Domain).String(),
 			Rrtype: dns.TypePTR,
 			Class:  dns.ClassINET,
 			Ttl:    i.TTLInSeconds(),

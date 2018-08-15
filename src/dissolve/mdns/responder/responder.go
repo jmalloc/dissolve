@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
-	"github.com/jmalloc/dissolve/src/dissolve/names"
 
 	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/miekg/dns"
@@ -63,35 +62,6 @@ func New(
 	return r, nil
 }
 
-// Probe attempts to "take control" of the given DNS name by probing the
-// network to see if any other mDNS responder is already responding for that
-// name.
-//
-// Once acquired, the name is "defended" against other mDNS responders taking
-// control of the name. See https://tools.ietf.org/html/rfc6762#section-8.1 for
-// information on mDNS probing.
-func (r *Responder) Probe(ctx context.Context, name names.FQDN) error {
-	ch := make(chan error, 1)
-
-	if err := r.execute(ctx, &acquire{name, ch}); err != nil {
-		return err
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-r.done:
-		return errors.New("server is no longer running")
-	case err := <-ch:
-		return err
-	}
-}
-
-// Release stops the server from "defending" a name that was previously acquired.
-func (r *Responder) Release(ctx context.Context, name names.FQDN) error {
-	return r.execute(ctx, &release{name})
-}
-
 // execute executes a server command immediately and blocks until it is complete.
 func (r *Responder) execute(ctx context.Context, c command) error {
 	select {
@@ -128,7 +98,6 @@ func (r *Responder) Run(ctx context.Context) error {
 		t := &transport.IPv4Transport{
 			Logger: r.logger,
 		}
-		// // r.transports = append(r.transports, t)
 
 		g.Go(func() error {
 			return r.receive(ctx, t)
@@ -139,7 +108,6 @@ func (r *Responder) Run(ctx context.Context) error {
 		t := &transport.IPv6Transport{
 			Logger: r.logger,
 		}
-		// // r.transports = append(r.transports, t)
 
 		g.Go(func() error {
 			return r.receive(ctx, t)
@@ -201,7 +169,14 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 	for {
 		in, err := t.Read()
 		if err != nil {
-			// TODO(jmalloc): check for "closed" error and return ctx.Err() instead
+			if isClosedError(err) {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+			}
+
 			return err
 		}
 
@@ -211,19 +186,19 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 			// https://tools.ietf.org/html/rfc6762#section-18.5
 			//
 			// In query messages, if the TC bit is set, it means that additional
-			// Known-Answer records may be following shortly.  A responder SHOULD
-			// record this fact, and wait for those additional Known-Answer records,
-			// before deciding whether to respond.  If the TC bit is clear, it means
-			// that the querying host has no additional Known Answers.
+			// Known-Answer records may be following shortly. A responder SHOULD record
+			// this fact, and wait for those additional Known-Answer records, before
+			// deciding whether to respond. If the TC bit is clear, it means that the
+			// querying host has no additional Known Answers.
 			//
 			// TODO(jmalloc): This "error" is not actually an error in the case of mDNS.
 			// See https://github.com/miekg/dns/issues/423. We attempt to serve the
-			// request anyway, without many guarantees as to the validity of the
-			// message. We also do not currently support the behavior specified above.
+			// request anyway, without many guarantees as to the validity of the message.
+			// We also do not currently support the behavior specified above.
 			//
 			// Because our DNS responder will not be the only multicast responder on the
-			// machine (ie the host OS provides its own) this may not even be possible
-			// to implement correctly. See https://tools.ietf.org/html/rfc6762#section-15.2
+			// machine (ie the host OS provides its own) this may not even be possible to
+			// implement correctly. See https://tools.ietf.org/html/rfc6762#section-15.2
 			// for more information.
 			r.logger.DebugString("received mDNS message with non-zero TC flag")
 		} else if err != nil {
@@ -243,5 +218,20 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 			return ctx.Err()
 		case r.commands <- c:
 		}
+	}
+}
+
+func isClosedError(err error) bool {
+	for {
+		e, ok := err.(*net.OpError)
+		if !ok {
+			return false
+		}
+
+		if e.Err.Error() == "use of closed network connection" {
+			return true
+		}
+
+		err = e.Err
 	}
 }

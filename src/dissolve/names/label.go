@@ -11,7 +11,7 @@ type Label string
 
 // IsQualified returns false.
 func (n Label) IsQualified() bool {
-	return true
+	return false
 }
 
 // Qualify returns a fully-qualified domain name produced by "qualifying"
