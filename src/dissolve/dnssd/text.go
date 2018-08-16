@@ -14,6 +14,7 @@ type Text struct {
 
 // ParseTextPairs returns a Text map from the given set of key/value strings.
 func ParseTextPairs(pairs []string) (Text, error) {
+	// TODO(jmalloc): parse pairs into map
 	return Text{}, nil
 }
 

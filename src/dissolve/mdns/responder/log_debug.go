@@ -24,6 +24,10 @@ func dumpRequestResponse(
 	unicast *dns.Msg,
 	multicast *dns.Msg,
 ) {
+	if len(unicast.Answer) == 0 && len(multicast.Answer) == 0 {
+		return
+	}
+
 	logMutex.Lock()
 	defer logMutex.Unlock()
 

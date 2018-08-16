@@ -33,20 +33,21 @@ func SplitInstanceName(n names.Name) (head InstanceName, tail names.Name) {
 		c := s[i]
 
 		if esc {
-			// accept any character after a backslash
-			b.WriteByte(c)
 			esc = false
 		} else if c == '\\' {
 			esc = true
+			continue
 		} else if c == '.' {
 			head = InstanceName(b.String())
+
 			if i < len(s)-1 {
 				tail = names.MustParse(s[i+1:])
 			}
+
 			return
-		} else {
-			b.WriteByte(c)
 		}
+
+		b.WriteByte(c)
 	}
 
 	// if the name ends midway through an escape sequence, we assume the string was

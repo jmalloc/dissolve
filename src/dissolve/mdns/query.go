@@ -11,7 +11,9 @@ import (
 // If legacy is true, it indicates this query will be sent from a "legacy" or
 // "one-shot" querier, which expects a unicast response.
 func NewQuery(legacy bool, q ...dns.Question) *dns.Msg {
-	m := &dns.Msg{}
+	m := &dns.Msg{
+		Question: q,
+	}
 
 	// https://tools.ietf.org/html/rfc6762#section-18.1
 	//
