@@ -12,6 +12,11 @@ type Text struct {
 	m map[string]string
 }
 
+// ParseTextPairs returns a Text map from the given set of key/value strings.
+func ParseTextPairs(pairs []string) (Text, error) {
+	return Text{}, nil
+}
+
 // Get returns the first value that is associated with the key k.
 func (t *Text) Get(k string) (string, bool) {
 	if err := ValidateTextKey(k); err != nil {

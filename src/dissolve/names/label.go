@@ -44,8 +44,10 @@ func (n Label) Validate() error {
 		return errors.New("label must not be empty")
 	}
 
-	if strings.Contains(string(n), ".") {
-		return fmt.Errorf("label '%s' is invalid, contains unexpected dots", n)
+	s := string(n)
+
+	if strings.Contains(s, ".") {
+		return fmt.Errorf("label '%s' is invalid, contains unexpected dots", s)
 	}
 
 	return nil

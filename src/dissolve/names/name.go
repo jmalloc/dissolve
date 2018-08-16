@@ -1,6 +1,8 @@
 package names
 
-import "strings"
+import (
+	"strings"
+)
 
 // Name is an DNS name of some kind.
 //
@@ -36,13 +38,11 @@ type Name interface {
 
 // Parse parses an arbitrary internet name.
 func Parse(n string) (Name, error) {
-	i := strings.Index(n, ".")
-
 	var name Name
 
-	if i == -1 {
+	if !strings.Contains(n, ".") {
 		name = Label(n)
-	} else if i == len(n)-1 {
+	} else if strings.HasSuffix(n, ".") {
 		name = FQDN(n)
 	} else {
 		name = UDN(n)

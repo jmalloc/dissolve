@@ -2,6 +2,7 @@ package dnssd
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/jmalloc/dissolve/src/dissolve/names"
 )
@@ -9,6 +10,54 @@ import (
 // InstanceName is an implementation of names.Name that represents an
 // unqualified instance name.
 type InstanceName string
+
+// SplitInstanceName parses the first label of n as a backslash-escaped instance
+// name. If n contains only a single label, tail is nil.
+func SplitInstanceName(n names.Name) (head InstanceName, tail names.Name) {
+	s := n.String()
+
+	var b strings.Builder
+	b.Grow(len(s))
+
+	// https://tools.ietf.org/html/rfc6763#section-4.3
+	//
+	// This document RECOMMENDS that if concatenating the three portions of
+	// a Service Instance Name, any dots in the <Instance> portion be
+	// escaped following the customary DNS convention for text files: by
+	// preceding literal dots with a backslash (so "." becomes "\.").
+	// Likewise, any backslashes in the <Instance> portion should also be
+	// escaped by preceding them with a backslash (so "\" becomes "\\").
+	esc := false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+
+		if esc {
+			// accept any character after a backslash
+			b.WriteByte(c)
+			esc = false
+		} else if c == '\\' {
+			esc = true
+		} else if c == '.' {
+			head = InstanceName(b.String())
+			if i < len(s)-1 {
+				tail = names.MustParse(s[i+1:])
+			}
+			return
+		} else {
+			b.WriteByte(c)
+		}
+	}
+
+	// if the name ends midway through an escape sequence, we assume the string was
+	// intended to end with a backslash.
+	if esc {
+		b.WriteByte('\\')
+	}
+
+	head = InstanceName(b.String())
+	return
+}
 
 // IsQualified returns false.
 func (n InstanceName) IsQualified() bool {
@@ -46,8 +95,6 @@ func (n InstanceName) Validate() error {
 		return errors.New("instance name must not be empty")
 	}
 
-	// TODO(jmalloc): actually validate
-
 	return nil
 }
 
@@ -58,7 +105,22 @@ func (n InstanceName) String() string {
 		panic(err)
 	}
 
-	// TODO(jmalloc): escape
+	s := string(n)
+	var b strings.Builder
+	b.Grow(len(s) * 2)
 
-	return string(n)
+	for {
+		i := strings.IndexAny(s, `.\`)
+		if i == -1 {
+			b.WriteString(s)
+			break
+		}
+
+		b.WriteString(s[:i])
+		b.WriteByte('\\')
+		b.WriteByte(s[i])
+		s = s[i+1:]
+	}
+
+	return b.String()
 }

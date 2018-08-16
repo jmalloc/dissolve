@@ -9,6 +9,11 @@ import (
 // DomainCollection is the map of domain name to domain.
 type DomainCollection map[names.FQDN]*Domain
 
+// Add adds a domain to the collection.
+func (c DomainCollection) Add(d *Domain) {
+	c[d.Name] = d
+}
+
 // Domain is a representation of an internet domain name that has DNS-SD service
 // instances.
 type Domain struct {

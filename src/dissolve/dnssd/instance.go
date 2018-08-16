@@ -16,6 +16,11 @@ const DefaultTTL = 120 * time.Second
 // instance.
 type InstanceCollection map[InstanceName]*Instance
 
+// Add adds an instance to the collection.
+func (c InstanceCollection) Add(i *Instance) {
+	c[i.Name] = i
+}
+
 // Instance is a DNS-SD service instance.
 type Instance struct {
 	// Name is the instance's unique name.

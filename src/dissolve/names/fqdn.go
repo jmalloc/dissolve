@@ -62,18 +62,30 @@ func (n FQDN) Join(s Name) Name {
 	))
 }
 
+// IsWithin returns true if n is within the given FQDN.
+//
+// It returns false if n and f are equal.
+func (n FQDN) IsWithin(f FQDN) bool {
+	return strings.HasSuffix(
+		n.String(),
+		"."+f.String(),
+	)
+}
+
 // Validate returns nil if the name is valid.
 func (n FQDN) Validate() error {
 	if n == "" {
 		return errors.New("fully-qualified name must not be empty")
 	}
 
-	if n[0] == '.' {
-		return fmt.Errorf("fully-qualified name '%s' is invalid, unexpected leading dot", n)
+	s := string(n)
+
+	if s[0] == '.' {
+		return fmt.Errorf("fully-qualified name '%s' is invalid, unexpected leading dot", s)
 	}
 
-	if n[len(n)-1] != '.' {
-		return fmt.Errorf("fully-qualified name '%s' is invalid, missing trailing dot", n)
+	if s[len(s)-1] != '.' {
+		return fmt.Errorf("fully-qualified name '%s' is invalid, missing trailing dot", s)
 	}
 
 	return nil

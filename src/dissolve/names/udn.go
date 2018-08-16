@@ -64,12 +64,14 @@ func (n UDN) Validate() error {
 		return errors.New("unqualified domain name must not be empty")
 	}
 
-	if n[0] == '.' {
-		return fmt.Errorf("unqualified domain name '%s' is invalid, unexpected leading dot", n)
+	s := string(n)
+
+	if s[0] == '.' {
+		return fmt.Errorf("unqualified domain name '%s' is invalid, unexpected leading dot", s)
 	}
 
-	if n[len(n)-1] == '.' {
-		return fmt.Errorf("unqualified domain name '%s' is invalid, unexpected trailing dot", n)
+	if s[len(n)-1] == '.' {
+		return fmt.Errorf("unqualified domain name '%s' is invalid, unexpected trailing dot", s)
 	}
 
 	return nil

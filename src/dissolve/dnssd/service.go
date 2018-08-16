@@ -11,6 +11,11 @@ import (
 // service.
 type ServiceCollection map[ServiceType]*Service
 
+// Add adds a domain to the collection.
+func (c ServiceCollection) Add(s *Service) {
+	c[s.Type] = s
+}
+
 // Service represents a DNS-SD service.
 type Service struct {
 	// Type is the DNS-SD service type, including the protocol, such as
