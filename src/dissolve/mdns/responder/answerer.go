@@ -101,3 +101,18 @@ func (rs *ResponseSections) Authority(records ...dns.RR) {
 func (rs *ResponseSections) Additional(records ...dns.RR) {
 	rs.AdditionalSection = append(rs.AdditionalSection, records...)
 }
+
+// UnionAnswerer is an answerer that combines answers from multiple answerers.
+type UnionAnswerer []Answerer
+
+// Answer populates an answer to a single DNS question.
+// The implementation must allow concurrent calls.
+func (an UnionAnswerer) Answer(ctx context.Context, q *Question, a *Answer) error {
+	for _, x := range an {
+		if err := x.Answer(ctx, q, a); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
