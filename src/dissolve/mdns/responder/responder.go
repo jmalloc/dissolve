@@ -9,7 +9,6 @@ import (
 	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
 
 	"github.com/jmalloc/twelf/src/twelf"
-	"github.com/miekg/dns"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -181,29 +180,31 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 		}
 
 		m, err := in.Message()
+		if err != nil {
+			r.logger.Log("error parsing mDNS message: %s", err)
+			continue
+		}
 
-		if err == dns.ErrTruncated {
+		if m.Truncated {
 			// https://tools.ietf.org/html/rfc6762#section-18.5
 			//
 			// In query messages, if the TC bit is set, it means that additional
-			// Known-Answer records may be following shortly. A responder SHOULD record
-			// this fact, and wait for those additional Known-Answer records, before
-			// deciding whether to respond. If the TC bit is clear, it means that the
-			// querying host has no additional Known Answers.
+			// Known-Answer records may be following shortly. A responder SHOULD
+			// record this fact, and wait for those additional Known-Answer
+			// records, before deciding whether to respond. If the TC bit is
+			// clear, it means that the querying host has no additional Known
+			// Answers.
 			//
-			// TODO(jmalloc): This "error" is not actually an error in the case of mDNS.
-			// See https://github.com/miekg/dns/issues/423. We attempt to serve the
-			// request anyway, without many guarantees as to the validity of the message.
-			// We also do not currently support the behavior specified above.
+			// We attempt to serve the request anyway, without many guarantees
+			// as to the validity of the message. We also do not currently
+			// support the behavior specified above.
 			//
-			// Because our DNS responder will not be the only multicast responder on the
-			// machine (ie the host OS provides its own) this may not even be possible to
-			// implement correctly. See https://tools.ietf.org/html/rfc6762#section-15.2
-			// for more information.
+			// Because our DNS responder will not be the only multicast
+			// responder on the machine (ie the host OS provides its own) this
+			// may not even be possible to implement correctly. See
+			// https://tools.ietf.org/html/rfc6762#section-15.2 for more
+			// information.
 			r.logger.DebugString("received mDNS message with non-zero TC flag")
-		} else if err != nil {
-			r.logger.Log("error parsing mDNS message: %s", err)
-			continue
 		}
 
 		var c command
