@@ -161,7 +161,8 @@ func (i *interceptor) multicast(query []byte) ([]byte, error) {
 		time.Now().Add(5 * time.Second),
 	)
 
-	if _, err := conn.WriteTo(query, transport.IPv4GroupAddress); err != nil {
+	_, err = conn.WriteTo(query, transport.IPv4GroupAddress)
+	if err != nil {
 		return nil, err
 	}
 
