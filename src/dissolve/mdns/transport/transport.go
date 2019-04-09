@@ -29,8 +29,7 @@ type Transport interface {
 
 // SendResponse sends a DNS message as a response to an inbound packet.
 func SendResponse(in *InboundPacket, to *net.UDPAddr, m *dns.Msg) (bool, error) {
-	if len(m.Question) == 0 &&
-		len(m.Answer) == 0 &&
+	if len(m.Answer) == 0 &&
 		len(m.Ns) == 0 &&
 		len(m.Extra) == 0 {
 		return false, nil
