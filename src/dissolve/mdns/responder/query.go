@@ -57,9 +57,9 @@ func (c *handleQuery) query(ctx context.Context, r *Responder) error {
 		// providing answers to them.
 
 		if unicast || legacy {
-			a.appendToMessage(uRes)
+			a.appendToMessage(uRes, legacy)
 		} else {
-			a.appendToMessage(mRes)
+			a.appendToMessage(mRes, false)
 		}
 	}
 

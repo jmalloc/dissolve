@@ -48,10 +48,16 @@ type Answer struct {
 }
 
 // appendToMessage appends the answer's records to m.
-func (a *Answer) appendToMessage(m *dns.Msg) {
-	m.Answer = appendUnique(m.Answer, a.Unique.AnswerSection)
-	m.Ns = appendUnique(m.Ns, a.Unique.AuthoritySection)
-	m.Extra = appendUnique(m.Extra, a.Unique.AdditionalSection)
+func (a *Answer) appendToMessage(m *dns.Msg, legacy bool) {
+	if legacy {
+		m.Answer = append(m.Answer, a.Unique.AnswerSection...)
+		m.Ns = append(m.Ns, a.Unique.AuthoritySection...)
+		m.Extra = append(m.Extra, a.Unique.AdditionalSection...)
+	} else {
+		m.Answer = appendUnique(m.Answer, a.Unique.AnswerSection)
+		m.Ns = appendUnique(m.Ns, a.Unique.AuthoritySection)
+		m.Extra = appendUnique(m.Extra, a.Unique.AdditionalSection)
+	}
 
 	m.Answer = append(m.Answer, a.Shared.AnswerSection...)
 	m.Ns = append(m.Ns, a.Shared.AuthoritySection...)
