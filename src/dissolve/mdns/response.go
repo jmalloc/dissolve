@@ -18,7 +18,9 @@ func NewResponse(query *dns.Msg, unicast bool) *dns.Msg {
 	// DNS queriers receiving Multicast DNS responses do not care what
 	// question elicited the response; they care only that the information
 	// in the response is true and accurate.
-	m.Question = nil
+	if !unicast {
+		m.Question = nil
+	}
 
 	// https://tools.ietf.org/html/rfc6762#section-18.1
 	//
