@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/jmalloc/twelf/src/twelf"
@@ -71,6 +72,13 @@ func (t *IPv6Transport) Read() (*InboundPacket, error) {
 	n, cm, src, err := t.pc.ReadFrom(buf)
 	if err != nil {
 		putBuffer(buf)
+		logReadError(t.Logger, t.Group(), err)
+		return nil, err
+	}
+
+	if cm == nil {
+		putBuffer(buf)
+		err := fmt.Errorf("empty control message from %s", t.Group())
 		logReadError(t.Logger, t.Group(), err)
 		return nil, err
 	}
