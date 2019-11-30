@@ -78,7 +78,7 @@ func (t *IPv6Transport) Read() (*InboundPacket, error) {
 
 	if cm == nil {
 		putBuffer(buf)
-		err := fmt.Errorf("empty control message from %s", t.Group())
+		err := fmt.Errorf("empty control message from %s", src)
 		logReadError(t.Logger, t.Group(), err)
 		return nil, err
 	}
