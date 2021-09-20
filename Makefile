@@ -1,4 +1,5 @@
--include artifacts/make/go/Makefile
+-include .makefiles/Makefile
+-include .makefiles/pkg/go/v1/Makefile
 
-artifacts/make/%/Makefile:
-	curl -sf https://jmalloc.github.io/makefiles/fetch | bash /dev/stdin $*
+.makefiles/%:
+	@curl -sfL https://makefiles.dev/v1 | bash /dev/stdin "$@"

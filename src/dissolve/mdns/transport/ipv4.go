@@ -3,8 +3,7 @@ package transport
 import (
 	"net"
 
-	"github.com/jmalloc/twelf/src/twelf"
-
+	"github.com/dogmatiq/dodeca/logging"
 	ipvx "golang.org/x/net/ipv4"
 )
 
@@ -27,7 +26,7 @@ var (
 
 // IPv4Transport is an IPv4-based UDP transport.
 type IPv4Transport struct {
-	Logger twelf.Logger
+	Logger logging.Logger
 
 	pc *ipvx.PacketConn
 }

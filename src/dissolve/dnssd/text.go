@@ -1,7 +1,7 @@
 package dnssd
 
-// Text is a map that represents the key/value pairs in
-// a service instance's TXT record.
+// Text is a map that represents the key/value pairs in a service instance's TXT
+// record.
 //
 // Keys are case-insensitive. The specification states that keys SHOULD be no
 // longer than 9 characters. However since this is not a strict requirement, no

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/jmalloc/twelf/src/twelf"
-
+	"github.com/dogmatiq/dodeca/logging"
 	ipvx "golang.org/x/net/ipv6"
 )
 
@@ -28,7 +27,7 @@ var (
 
 // IPv6Transport is an IPv6-based UDP transport.
 type IPv6Transport struct {
-	Logger twelf.Logger
+	Logger logging.Logger
 
 	pc *ipvx.PacketConn
 }

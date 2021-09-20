@@ -6,9 +6,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/dogmatiq/dodeca/logging"
 	"github.com/jmalloc/dissolve/src/dissolve/mdns/transport"
-
-	"github.com/jmalloc/twelf/src/twelf"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -23,7 +22,7 @@ type Responder struct {
 	iface       *net.Interface
 	disableIPv4 bool
 	disableIPv6 bool
-	logger      twelf.Logger
+	logger      logging.Logger
 
 	done     chan struct{}
 	commands chan command
@@ -52,10 +51,6 @@ func New(
 			return nil, err
 		}
 		r.iface = &iface
-	}
-
-	if r.logger == nil {
-		r.logger = twelf.DefaultLogger
 	}
 
 	return r, nil
@@ -181,7 +176,7 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 
 		m, err := in.Message()
 		if err != nil {
-			r.logger.Log("error parsing mDNS message: %s", err)
+			logging.Log(r.logger, "error parsing mDNS message: %s", err)
 			continue
 		}
 
@@ -204,7 +199,7 @@ func (r *Responder) receive(ctx context.Context, t transport.Transport) error {
 			// may not even be possible to implement correctly. See
 			// https://tools.ietf.org/html/rfc6762#section-15.2 for more
 			// information.
-			r.logger.DebugString("received mDNS message with non-zero TC flag")
+			logging.DebugString(r.logger, "received mDNS message with non-zero TC flag")
 		}
 
 		var c command

@@ -3,7 +3,7 @@ package responder
 import (
 	"net"
 
-	"github.com/jmalloc/twelf/src/twelf"
+	"github.com/dogmatiq/dodeca/logging"
 )
 
 // Option is a function that applies an option to a server created by
@@ -11,7 +11,7 @@ import (
 type Option func(*Responder) error
 
 // UseLogger returns a server option that sets the logger used by the server.
-func UseLogger(l twelf.Logger) Option {
+func UseLogger(l logging.Logger) Option {
 	return func(r *Responder) error {
 		r.logger = l
 		return nil
