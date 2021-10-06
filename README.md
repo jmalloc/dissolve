@@ -1,5 +1,8 @@
 # Dissolve
 
+This project is UNMAINTAINED. A replacement is under development at
+https://github.com/dogmatiq/dissolve.
+
 [![Build Status](http://img.shields.io/travis/jmalloc/dissolve/master.svg)](https://travis-ci.org/jmalloc/dissolve)
 [![Code Coverage](https://img.shields.io/codecov/c/github/jmalloc/dissolve/master.svg)](https://codecov.io/github/jmalloc/dissolve)
 [![Latest Version](https://img.shields.io/github/tag/jmalloc/dissolve.svg?label=semver)](https://semver.org)
